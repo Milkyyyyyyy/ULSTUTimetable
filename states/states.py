@@ -9,3 +9,11 @@ class Registration(StatesGroup):
 
 class MainMenu(StatesGroup):
 	main_menu = State()
+
+class Settings(StatesGroup):
+	settings = State()
+	waiting_for_login = State()
+	waiting_for_password = State()
+	waiting_for_group = State()
+	waiting_for_subgroup = State()
+	waiting_for_facult = State()

@@ -26,16 +26,11 @@ dp.include_router(main_menu_router)
 
 @dp.message(Command("start"))
 async def start(message: Message, state: FSMContext):
-	await message.reply(
-		"Привет!\n"
-		"Я бот расписания УлГТУ"
-	)
-
 	user = await get_user(message.from_user.id)
 	if user is None:
 		await start_registration(message, state)
 	else:
-		await show_main_menu(message, user, state)
+		await show_main_menu(message, state)
 
 
 

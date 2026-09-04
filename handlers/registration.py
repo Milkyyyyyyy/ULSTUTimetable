@@ -112,7 +112,7 @@ async def facult_handler(callback: CallbackQuery, state: FSMContext):
 	await callback.answer()
 
 
-skip_subgroup_keyboard = InlineKeyboardMarkup(
+subgroup_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
 	    [
 		    InlineKeyboardButton(
@@ -153,7 +153,7 @@ async def group_handler(message: Message, state: FSMContext):
 		"<b>Выберите вашу подгруппу</b>\n"
 		"Если фильтр по подгруппе вам не нужен, нажмите \"Пропустить\"",
 		parse_mode="HTML",
-		reply_markup=skip_subgroup_keyboard
+		reply_markup=subgroup_keyboard
 	)
 	await state.set_state(Registration.waiting_for_subgroup)
 
