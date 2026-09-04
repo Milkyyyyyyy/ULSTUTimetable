@@ -1,188 +1,267 @@
+import random
+from datetime import date, timedelta, datetime
+
 from aiogram import Router, F
-from aiogram.types import (
-    Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    CallbackQuery,
-)
+from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.types import BufferedInputFile
+from aiogram.types import (
+	Message,
+	InlineKeyboardMarkup,
+	InlineKeyboardButton,
+	CallbackQuery,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.fsm.state import State, StatesGroup
 
-from database import get_user
-from states.states import MainMenu, Settings, ScheduleSelection
-from datetime import date, timedelta
-
-from ulstu.schedule import get_schedule_for_date, get_schedule
-from utils import safe_edit_text, delete_button_factory
+from database import get_user, update_user
+from states.states import MainMenu, ScheduleSelection, NotificationSettings
+from ulstu.schedule import get_schedule_for_date, get_schedule, send_schedule
+from ulstu.schedule_image import generate_week_schedule_image
+from utils import safe_edit_text, build_delete_button, delete_after
 
 router = Router()
 
+WELCOME_MESSAGES = [
+	"С возвращением!",
+	"Добро пожаловать обратно!",
+	"Рад снова тебя видеть.",
+	"Что сегодня по расписанию?",
+	"Проверим расписание?",
+	"Готово. Можно посмотреть расписание.",
+	"Расписание готово.",
+	"Можно начинать.",
+	"Что тебя ждёт сегодня?",
+	"Посмотрим, что запланировано.",
+	"Всё готово к работе.",
+	"Добро пожаловать!",
+	"Хорошего дня!",
+	"Давай посмотрим расписание.",
+	"Расписание на месте.",
+]
 
-# ---------------------------------------------------------------------------
-# Главное меню
-# ---------------------------------------------------------------------------
 
-main_menu_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="🗓 Сегодня",
-                callback_data="schedule:today",
-                style="success",
-            ),
-            InlineKeyboardButton(
-                text="🗓 Завтра",
-                callback_data="schedule:tomorrow",
-                style="success",
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text="📅 Расписание на дату",
-                callback_data="schedule:select",
-                style="success",
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text="⚙ Настройки",
-                callback_data="open_settings",
-                style="primary",
-            )
-        ],
-    ]
-)
+async def build_main_menu_buttons(
+		telegram_id: int,
+) -> InlineKeyboardMarkup:
+
+	user = await get_user(telegram_id)
+
+	buttons = []
+
+	# --------------------------------------------------
+	# Автоматическое оповещение
+	# --------------------------------------------------
+
+	if user["notification_enabled"] == 1:
+		buttons.append([
+			InlineKeyboardButton(
+				text="🔔 Автооповещение: ВКЛ",
+				callback_data="notification_settings:open",
+				style="primary",
+			)
+		])
+
+	else:
+		buttons.append([
+			InlineKeyboardButton(
+				text="🔔 Автооповещение: ВЫКЛ",
+				callback_data="notification_settings:open",
+			)
+		])
+
+	# --------------------------------------------------
+	# Расписание на сегодня / завтра
+	# --------------------------------------------------
+
+	buttons.append([
+		InlineKeyboardButton(
+			text="🗓 Сегодня",
+			callback_data="schedule:today",
+			style="success",
+		),
+		InlineKeyboardButton(
+			text="🗓 Завтра",
+			callback_data="schedule:tomorrow",
+			style="success",
+		),
+	])
+
+	# --------------------------------------------------
+	# Расписание на неделю
+	# --------------------------------------------------
+
+	buttons.append([
+		InlineKeyboardButton(
+			text="На неделю",
+			callback_data="schedule_week:this",
+			style="success",
+		),
+		InlineKeyboardButton(
+			text="На следующую неделю",
+			callback_data="schedule_week:next",
+			style="success",
+		),
+	])
+
+	# --------------------------------------------------
+	# Расписание на конкретную дату
+	# --------------------------------------------------
+
+	buttons.append([
+		InlineKeyboardButton(
+			text="📅 Расписание на дату",
+			callback_data="schedule:select",
+			style="success",
+		),
+	])
+
+	# --------------------------------------------------
+	# Настройки
+	# --------------------------------------------------
+
+	buttons.append([
+		InlineKeyboardButton(
+			text="⚙ Настройки",
+			callback_data="open_settings",
+			style="primary",
+		)
+	])
+
+	return InlineKeyboardMarkup(
+		inline_keyboard=buttons
+	)
 
 
 async def show_main_menu(
-    message: Message,
-    state: FSMContext,
-    edit_previous_message: bool = False,
+		message: Message,
+		state: FSMContext,
+		edit_previous_message: bool = False,
 ):
-    await state.clear()
-    await state.set_state(MainMenu.main_menu)
+	await state.clear()
+	await state.set_state(MainMenu.main_menu)
 
-    message_text = "С возвращением!\n"
+	message_text = random.choice(WELCOME_MESSAGES)
 
-    if edit_previous_message:
-        await safe_edit_text(
-            message,
-            message_text,
-            main_menu_keyboard,
-        )
-    else:
-        await message.answer(
-            message_text,
-            reply_markup=main_menu_keyboard,
-        )
+	if edit_previous_message:
+		await safe_edit_text(
+			message,
+			message_text,
+			await build_main_menu_buttons(message.chat.id),
+		)
+	else:
+		await message.answer(
+			message_text,
+			reply_markup=await build_main_menu_buttons(message.chat.id),
+		)
+
 
 @router.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
-    await show_main_menu(callback.message, state, edit_previous_message=True)
+	await show_main_menu(callback.message, state, edit_previous_message=True)
+
 
 # ---------------------------------------------------------------------------
 # Клавиатура выбора недели и дня
 # ---------------------------------------------------------------------------
 
 def build_schedule_keyboard(
-    schedule: list[dict],
-    week_index: int,
+		schedule: list[dict],
+		week_index: int,
 ) -> InlineKeyboardMarkup:
-    """
-    Создаёт клавиатуру для выбора дня.
-    """
+	"""
+	Создаёт клавиатуру для выбора дня.
+	"""
 
-    builder = InlineKeyboardBuilder()
+	builder = InlineKeyboardBuilder()
 
-    # Защита от некорректного индекса
-    if not schedule:
-        return builder.as_markup()
+	# Защита от некорректного индекса
+	if not schedule:
+		return builder.as_markup()
 
-    if week_index < 0:
-        week_index = 0
+	if week_index < 0:
+		week_index = 0
 
-    if week_index >= len(schedule):
-        week_index = len(schedule) - 1
+	if week_index >= len(schedule):
+		week_index = len(schedule) - 1
 
-    week = schedule[week_index]
-    days = week.get("days", [])
+	week = schedule[week_index]
+	days = week.get("days", [])
 
-    # --------------------------------------------------
-    # Кнопки дней
-    # --------------------------------------------------
+	# --------------------------------------------------
+	# Кнопки дней
+	# --------------------------------------------------
 
-    for row_index in range(3):
-	    left_index = row_index
-	    right_index = row_index + 3
+	for row_index in range(3):
+		left_index = row_index
+		right_index = row_index + 3
 
-	    builder.row(
-		    InlineKeyboardButton(
-			    text=days[left_index]["day"],
-			    callback_data=f"schedule_day:{week_index}:{left_index}",
-		    ),
-		    InlineKeyboardButton(
-			    text=days[right_index]["day"],
-			    callback_data=f"schedule_day:{week_index}:{right_index}",
-		    ),
-	    )
+		builder.row(
+			InlineKeyboardButton(
+				text=days[left_index]["day"],
+				callback_data=f"schedule_day:{week_index}:{left_index}",
+			),
+			InlineKeyboardButton(
+				text=days[right_index]["day"],
+				callback_data=f"schedule_day:{week_index}:{right_index}",
+			),
+		)
 
-    # Воскресенье отдельно
-    if len(days) > 6:
-	    day = days[6]
+	# Воскресенье отдельно
+	if len(days) > 6:
+		day = days[6]
 
-	    builder.row(
-		    InlineKeyboardButton(
-			    text=day["day"],
-			    callback_data=f"schedule_day:{week_index}:6",
-		    )
-	    )
+		builder.row(
+			InlineKeyboardButton(
+				text=day["day"],
+				callback_data=f"schedule_day:{week_index}:6",
+			)
+		)
 
-    # --------------------------------------------------
-    # Навигация по неделям
-    # --------------------------------------------------
+	# --------------------------------------------------
+	# Навигация по неделям
+	# --------------------------------------------------
 
-    navigation_buttons = []
+	navigation_buttons = []
 
-    if week_index > 0:
-        navigation_buttons.append(
-            InlineKeyboardButton(
-                text="←",
-                callback_data=f"schedule_week:{week_index - 1}",
-            )
-        )
+	if week_index > 0:
+		navigation_buttons.append(
+			InlineKeyboardButton(
+				text="←",
+				callback_data=f"schedule_select_week:{week_index - 1}",
+			)
+		)
 
-    navigation_buttons.append(
-        InlineKeyboardButton(
-            text=f"Неделя {week['week']}",
-            callback_data=f"schedule_week_current:{week_index}",
-            style="success",
-        )
-    )
+	navigation_buttons.append(
+		InlineKeyboardButton(
+			text=f"Неделя {week['week']}",
+			callback_data=f"schedule_week_current:{week_index}",
+			style="success",
+		)
+	)
 
-    if week_index < len(schedule) - 1:
-        navigation_buttons.append(
-            InlineKeyboardButton(
-                text="→",
-                callback_data=f"schedule_week:{week_index + 1}",
-            )
-        )
+	if week_index < len(schedule) - 1:
+		navigation_buttons.append(
+			InlineKeyboardButton(
+				text="→",
+				callback_data=f"schedule_select_week:{week_index + 1}",
+			)
+		)
 
-    builder.row(*navigation_buttons)
+	builder.row(*navigation_buttons)
 
-    # --------------------------------------------------
-    # Назад
-    # --------------------------------------------------
+	# --------------------------------------------------
+	# Назад
+	# --------------------------------------------------
 
-    builder.row(
-        InlineKeyboardButton(
-            text="◀ Назад",
-            callback_data="back_to_menu",
-            style="primary",
-        )
-    )
+	builder.row(
+		InlineKeyboardButton(
+			text="◀ Назад",
+			callback_data="back_to_menu",
+			style="primary",
+		)
+	)
 
-    return builder.as_markup()
+	return builder.as_markup()
 
 
 # ---------------------------------------------------------------------------
@@ -190,97 +269,95 @@ def build_schedule_keyboard(
 # ---------------------------------------------------------------------------
 
 @router.callback_query(
-    MainMenu.main_menu,
-    F.data.startswith("schedule:"),
+	MainMenu.main_menu,
+	F.data.startswith("schedule:"),
 )
 async def schedule_button_handler(
-    callback: CallbackQuery,
-    state: FSMContext,
+		callback: CallbackQuery,
+		state: FSMContext,
 ):
-    await callback.answer()
+	await callback.answer()
 
-    action = callback.data.split(":", 1)[1]
+	action = callback.data.split(":", 1)[1]
 
-    # --------------------------------------------------
-    # Получаем расписание только здесь
-    # --------------------------------------------------
+	# --------------------------------------------------
+	# Получаем расписание только здесь
+	# --------------------------------------------------
 
-    schedule = await get_schedule(callback.from_user.id)
+	schedule = await get_schedule(callback.from_user.id)
 
-    # --------------------------------------------------
-    # Сегодня
-    # --------------------------------------------------
+	# --------------------------------------------------
+	# Сегодня
+	# --------------------------------------------------
 
-    if action == "today":
-        schedule_date = get_schedule_for_date(
-            schedule,
-            date.today(),
-        )
+	if action == "today":
+		schedule_date = get_schedule_for_date(
+			schedule,
+			date.today(),
+		)
 
-        if schedule_date is not None:
-            await send_schedule(
-                callback.message,
-                state,
-                schedule_date,
-            )
+		if schedule_date is not None:
+			await send_schedule(
+				callback.message,
+				schedule_date,
+			)
 
-        return
+		return
 
-    # --------------------------------------------------
-    # Завтра
-    # --------------------------------------------------
+	# --------------------------------------------------
+	# Завтра
+	# --------------------------------------------------
 
-    if action == "tomorrow":
-        tomorrow = date.today() + timedelta(days=1)
+	if action == "tomorrow":
+		tomorrow = date.today() + timedelta(days=1)
 
-        schedule_date = get_schedule_for_date(
-            schedule,
-            tomorrow,
-        )
+		schedule_date = get_schedule_for_date(
+			schedule,
+			tomorrow,
+		)
 
-        if schedule_date is not None:
-            await send_schedule(
-                callback.message,
-                state,
-                schedule_date,
-            )
+		if schedule_date is not None:
+			await send_schedule(
+				callback.message,
+				schedule_date,
+			)
 
-        return
+		return
 
-    # --------------------------------------------------
-    # Выбор дня
-    # --------------------------------------------------
+	# --------------------------------------------------
+	# Выбор дня
+	# --------------------------------------------------
 
-    if action == "select":
+	if action == "select":
 
-        if not schedule:
-            await callback.message.edit_text(
-                "Расписание отсутствует."
-            )
-            return
+		if not schedule:
+			await callback.message.edit_text(
+				"Расписание отсутствует."
+			)
+			return
 
-        # Сохраняем весь schedule в FSM.
-        # Благодаря этому при переключении недель
-        # заново получать расписание не понадобится.
-        await state.update_data(
-            schedule=schedule,
-            week_index=0,
-        )
+		# Сохраняем весь schedule в FSM.
+		# Благодаря этому при переключении недель
+		# заново получать расписание не понадобится.
+		await state.update_data(
+			schedule=schedule,
+			week_index=0,
+		)
 
-        await state.set_state(
-            ScheduleSelection.selecting_day
-        )
+		await state.set_state(
+			ScheduleSelection.selecting_day
+		)
 
-        keyboard = build_schedule_keyboard(
-            schedule,
-            week_index=0,
-        )
+		keyboard = build_schedule_keyboard(
+			schedule,
+			week_index=0,
+		)
 
-        await callback.message.edit_text(
-            text="📅 <b>Выберите день:</b>",
-            parse_mode="HTML",
-            reply_markup=keyboard,
-        )
+		await callback.message.edit_text(
+			text="📅 <b>Выберите день:</b>",
+			parse_mode="HTML",
+			reply_markup=keyboard,
+		)
 
 
 # ---------------------------------------------------------------------------
@@ -288,45 +365,45 @@ async def schedule_button_handler(
 # ---------------------------------------------------------------------------
 
 @router.callback_query(
-    F.data.startswith("schedule_week:")
+	F.data.startswith("schedule_select_week:")
 )
 async def schedule_week_handler(
-    callback: CallbackQuery,
-    state: FSMContext,
+		callback: CallbackQuery,
+		state: FSMContext,
 ):
-    await callback.answer()
+	await callback.answer()
 
-    # Получаем сохранённый schedule
-    data = await state.get_data()
-    schedule = data.get("schedule")
+	# Получаем сохранённый schedule
+	data = await state.get_data()
+	schedule = data.get("schedule")
 
-    if not schedule:
-        await callback.message.edit_text(
-            "Не удалось получить расписание. Откройте выбор даты заново."
-        )
-        return
+	if not schedule:
+		await callback.message.edit_text(
+			"Не удалось получить расписание. Откройте выбор даты заново."
+		)
+		return
 
-    # Получаем индекс недели
-    week_index = int(
-        callback.data.split(":", 1)[1]
-    )
+	# Получаем индекс недели
+	week_index = int(
+		callback.data.split(":", 1)[1]
+	)
 
-    # Защита от выхода за пределы
-    if week_index < 0 or week_index >= len(schedule):
-        return
+	# Защита от выхода за пределы
+	if week_index < 0 or week_index >= len(schedule):
+		return
 
-    await state.update_data(
-        week_index=week_index
-    )
+	await state.update_data(
+		week_index=week_index
+	)
 
-    keyboard = build_schedule_keyboard(
-        schedule,
-        week_index,
-    )
+	keyboard = build_schedule_keyboard(
+		schedule,
+		week_index,
+	)
 
-    await callback.message.edit_reply_markup(
-        reply_markup=keyboard
-    )
+	await callback.message.edit_reply_markup(
+		reply_markup=keyboard
+	)
 
 
 # ---------------------------------------------------------------------------
@@ -334,19 +411,19 @@ async def schedule_week_handler(
 # ---------------------------------------------------------------------------
 
 @router.callback_query(
-    F.data.startswith("schedule_week_current:")
+	F.data.startswith("schedule_week_current:")
 )
 async def schedule_week_current_handler(
-    callback: CallbackQuery,
+		callback: CallbackQuery,
 ):
-    """
-    Центральная кнопка 'Неделя N'.
+	"""
+	Центральная кнопка 'Неделя N'.
 
-    Ничего не делает — она просто показывает,
-    на какой неделе сейчас находится пользователь.
-    """
+	Ничего не делает — она просто показывает,
+	на какой неделе сейчас находится пользователь.
+	"""
 
-    await callback.answer()
+	await callback.answer()
 
 
 # ---------------------------------------------------------------------------
@@ -354,174 +431,363 @@ async def schedule_week_current_handler(
 # ---------------------------------------------------------------------------
 
 @router.callback_query(
-    F.data.startswith("schedule_day:")
+	F.data.startswith("schedule_day:")
 )
 async def schedule_day_handler(
-    callback: CallbackQuery,
-    state: FSMContext,
+		callback: CallbackQuery,
+		state: FSMContext,
 ):
-    await callback.answer()
+	await callback.answer()
 
-    data = await state.get_data()
-    schedule = data.get("schedule")
+	data = await state.get_data()
+	schedule = data.get("schedule")
 
-    if not schedule:
-        await callback.message.edit_text(
-            "Не удалось получить расписание. Откройте выбор даты заново."
-        )
-        return
+	if not schedule:
+		await callback.message.edit_text(
+			"Не удалось получить расписание. Откройте выбор даты заново."
+		)
+		return
 
-    # schedule_day:week_index:day_index
-    _, week_index, day_index = callback.data.split(":")
+	# schedule_day:week_index:day_index
+	_, week_index, day_index = callback.data.split(":")
 
-    week_index = int(week_index)
-    day_index = int(day_index)
+	week_index = int(week_index)
+	day_index = int(day_index)
 
-    # Защита от некорректных индексов
-    if week_index < 0 or week_index >= len(schedule):
-        return
+	# Защита от некорректных индексов
+	if week_index < 0 or week_index >= len(schedule):
+		return
 
-    week = schedule[week_index]
+	week = schedule[week_index]
 
-    if day_index < 0 or day_index >= len(week["days"]):
-        return
+	if day_index < 0 or day_index >= len(week["days"]):
+		return
 
-    day_schedule = week["days"][day_index]
+	day_schedule = week["days"][day_index]
 
-    await state.set_state(
-        ScheduleSelection.selecting_day
-    )
+	await state.set_state(
+		ScheduleSelection.selecting_day
+	)
 
-    await send_schedule(
-        callback.message,
-        state,
-        day_schedule,
-    )
+	await send_schedule(
+		callback.message,
+		day_schedule,
+	)
 
 
 # ---------------------------------------------------------------------------
 # Отправка расписания
 # ---------------------------------------------------------------------------
 
-async def send_schedule(
-    message: Message,
-    state: FSMContext,
-    schedule: dict,
-):
-    message_text = await format_day_schedule(
-        schedule,
-        message.chat.id,
-    )
-
-    await message.answer(
-        text=message_text,
-        parse_mode="HTML",
-        reply_markup=await delete_button_factory(message),
-    )
-
 
 # ---------------------------------------------------------------------------
 # Форматирование расписания
 # ---------------------------------------------------------------------------
 
-async def format_day_schedule(
-    day_schedule: dict,
-    telegram_id: int | None = None,
-) -> str:
-    """
-    Формирует готовое сообщение с расписанием на день.
 
-    Если telegram_id передан:
-        применяется фильтр по подгруппе пользователя.
+def get_week_index_for_date(
+		schedule: list[dict],
+		target_date: date,
+) -> int | None:
 
-    Если telegram_id не передан:
-        показываются все занятия.
-    """
+	target_date_string = target_date.strftime("%d.%m.%Y")
 
-    # --------------------------------------------------
-    # Получаем подгруппу пользователя
-    # --------------------------------------------------
+	for week_index, week in enumerate(schedule):
 
-    user_subgroup = None
+		for day in week.get("days", []):
 
-    if telegram_id is not None:
-        user = await get_user(telegram_id)
+			if day.get("date") == target_date_string:
+				return week_index
 
-        if user is not None:
-            user_subgroup = user["subgroup"]
+	for week_index, week in enumerate(schedule):
 
-    # --------------------------------------------------
-    # Заголовок
-    # --------------------------------------------------
+		date_range = week.get("date_range")
 
-    schedule_date = day_schedule["date"]
+		if not date_range:
+			continue
 
-    message = (
-        f"📅 <b>Расписание на {schedule_date}</b>\n\n"
-    )
+		start_date = parse_schedule_date(
+			date_range[0]
+		)
 
-    # --------------------------------------------------
-    # Обрабатываем пары
-    # --------------------------------------------------
+		end_date = parse_schedule_date(
+			date_range[1]
+		)
 
-    visible_lessons_count = 0
+		if start_date <= target_date <= end_date:
+			return week_index
 
-    for lesson in day_schedule["lessons"]:
+	return None
 
-        visible_lessons = []
 
-        for item in lesson["lessons"]:
+def parse_schedule_date(value: str) -> date:
+	return datetime.strptime(
+		value,
+		"%d.%m.%Y",
+	).date()
 
-            # Общее занятие
-            if item["subgroup"] is None:
-                visible_lessons.append(item)
 
-            # Занятие нашей подгруппы
-            elif (
-                user_subgroup is None
-                or item["subgroup"] == user_subgroup
-            ):
-                visible_lessons.append(item)
+@router.callback_query(
+	MainMenu.main_menu,
+	F.data.in_({"schedule_week:this", "schedule_week:next"}),
+)
+async def schedule_week_image_handler(
+		callback: CallbackQuery,
+		state: FSMContext,
+):
+	await callback.answer()
 
-        # Если после фильтрации ничего не осталось —
-        # не показываем эту пару.
-        if not visible_lessons:
-            continue
+	# --------------------------------------------------
+	# Узнаём, какую неделю запросил пользователь
+	# --------------------------------------------------
 
-        visible_lessons_count += 1
+	action = callback.data.split(":", 1)[1]
 
-        lesson_text = (
-            f"<blockquote>"
-            f"<b>{lesson['lesson_number']}-я пара "
-            f"({lesson['time']})</b>\n\n"
-        )
+	# --------------------------------------------------
+	# Получаем полный schedule
+	# --------------------------------------------------
 
-        for item in visible_lessons:
-            lesson_text += (
-                f"<b><u>{item['type']}</u>"
-                f"{item['subject']}</b>\n"
-            )
+	schedule = await get_schedule(
+		callback.from_user.id
+	)
 
-            if item["subgroup"] is not None:
-                lesson_text += (
-                    f"<b>Подгруппа:</b> "
-                    f"{item['subgroup']}\n"
-                )
+	if not schedule:
+		await callback.message.answer(
+			"Расписание отсутствует."
+		)
+		return
 
-            lesson_text += (
-                f"\n{item['teacher']}\n"
-                f"<b>Аудитория:</b> {item['room']}\n\n"
-            )
+	# --------------------------------------------------
+	# Находим текущую неделю
+	# --------------------------------------------------
 
-        lesson_text += "</blockquote>\n"
+	current_week_index = get_week_index_for_date(
+		schedule,
+		date.today(),
+	)
 
-        message += lesson_text
+	if current_week_index is None:
+		await callback.message.answer(
+			"Не удалось определить текущую неделю "
+			"в расписании."
+		)
+		return
 
-    # --------------------------------------------------
-    # Если пар нет
-    # --------------------------------------------------
+	# --------------------------------------------------
+	# Определяем нужную неделю
+	# --------------------------------------------------
 
-    if visible_lessons_count == 0:
-        message += "<i>Пар нет.</i>"
+	if action == "this":
+		week_index = current_week_index
 
-    return message
+	else:
+		week_index = current_week_index + 1
+
+	# --------------------------------------------------
+	# Проверяем, существует ли следующая неделя
+	# --------------------------------------------------
+
+	if week_index >= len(schedule):
+
+		if action == "next":
+			await callback.message.answer(
+				"Следующей недели в расписании нет."
+			)
+
+		return
+
+	week = schedule[week_index]
+
+	# --------------------------------------------------
+	# Получаем подгруппу пользователя
+	# --------------------------------------------------
+
+	user = await get_user(
+		callback.from_user.id
+	)
+
+	user_subgroup = None
+
+	if user is not None:
+		user_subgroup = user["subgroup"]
+
+	# --------------------------------------------------
+	# Генерируем изображение
+	# --------------------------------------------------
+
+	image = generate_week_schedule_image(
+		week,
+		user_subgroup=user_subgroup,
+	)
+
+	photo = BufferedInputFile(
+		image.getvalue(),
+		filename=f"schedule_week_{week['week']}.png",
+	)
+
+	# --------------------------------------------------
+	# Подпись
+	# --------------------------------------------------
+
+	caption = (
+		f"📅 <b>Расписание на неделю {week['week']}</b>\n"
+		f"{week['date_range'][0]} — {week['date_range'][1]}"
+	)
+
+	# --------------------------------------------------
+	# Отправляем
+	# --------------------------------------------------
+
+	await callback.message.answer_photo(
+		photo=photo,
+		caption=caption,
+		parse_mode="HTML",
+		reply_markup=await build_delete_button(
+			callback.message
+		),
+	)
+
+
+async def build_notification_settings_button(user) -> InlineKeyboardMarkup:
+	buttons = []
+	buttons.append([
+		InlineKeyboardButton(
+			text="🕒Задать время оповещения",
+			callback_data="notification_settings:set_time"
+		)
+	])
+	if user['notification_time'] is not None and user['notification_time'] != "":
+		enabled = user['notification_enabled']
+		if enabled:
+			buttons.append([
+				InlineKeyboardButton(
+					text="Включено",
+					callback_data="notification_settings:toggle",
+					style="primary"
+				)
+			])
+		else:
+			buttons.append([
+				InlineKeyboardButton(
+					text="Выключено",
+					callback_data="notification_settings:toggle",
+					style="danger"
+				)
+			])
+	buttons.append([
+		InlineKeyboardButton(
+			text="◀Назад",
+			callback_data="back_to_menu"
+		)
+	])
+	return InlineKeyboardMarkup(
+		inline_keyboard=buttons
+	)
+
+
+@router.callback_query(
+	StateFilter(
+		MainMenu.main_menu,
+		NotificationSettings.notification_setting
+	),
+	F.data.in_({
+		"notification_settings:open",
+		"notification_settings:toggle",
+	}),
+)
+async def notification_settings_menu_button_handler(callback: CallbackQuery, state: FSMContext):
+	await callback.answer()
+
+	telegram_id = callback.from_user.id
+	user = await get_user(telegram_id)
+
+	if callback.data.split(":")[1] == "toggle":
+		enabled = not bool(user['notification_enabled'])
+		await update_user(
+			telegram_id,
+			notification_enabled=enabled
+		)
+		user = await get_user(telegram_id)
+
+	await render_notification_settings_menu(callback.message, state, user)
+
+
+async def render_notification_settings_menu(message: Message, state: FSMContext, user: dict | None = None):
+	if user is None:
+		telegram_id = message.chat.id
+		user = await get_user(telegram_id)
+
+	await state.set_state(NotificationSettings.notification_setting)
+
+	if user['notification_time'] is None or user['notification_time'] == "":
+		message_text = "Настройте время"
+	else:
+		message_text = ("Время оповещения:\n"
+		                f"🕒{user['notification_time']}")
+	await safe_edit_text(
+		message,
+		message_text,
+		reply_markup=await build_notification_settings_button(user)
+	)
+
+
+def is_valid_time(value: str) -> bool:
+	try:
+		datetime.strptime(value, "%H:%M")
+		return True
+	except ValueError:
+		return False
+
+
+@router.callback_query(
+	NotificationSettings.notification_setting,
+	F.data == "notification_settings:set_time"
+)
+async def set_time_button_handler(
+		callback: CallbackQuery,
+		state: FSMContext,
+):
+	await callback.answer()
+
+	sent_message = await callback.message.answer(
+		"Введите время в формате чч:мм"
+	)
+
+	await state.update_data(
+		callback_message=callback.message,
+		previous_message=sent_message
+	)
+
+	await state.set_state(NotificationSettings.wait_for_time)
+
+
+@router.message(NotificationSettings.wait_for_time)
+async def time_handle(
+		message: Message,
+		state: FSMContext,
+):
+	time = message.text.strip()
+
+	if not is_valid_time(time):
+		sent_message = await message.answer(
+			"Неверный формат.\n"
+			"Попробуйте ещё раз"
+		)
+		await delete_after(sent_message, 5)
+		return
+
+	await update_user(
+		message.chat.id,
+		notification_time=time
+	)
+
+	data = await state.get_data()
+
+	await message.delete()
+	await data.get("previous_message").delete()
+	callback_message = data.get("callback_message")
+
+	await render_notification_settings_menu(
+		callback_message,
+		state
+	)

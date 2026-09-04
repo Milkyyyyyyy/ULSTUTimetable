@@ -4,19 +4,17 @@ from dataclasses import dataclass, asdict
 from typing import Optional
 
 from aiogram import Router, F
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 from database import get_user, update_user
 from encryption.encryption import encrypt_password
+from handlers.main_menu import show_main_menu
 from states.states import MainMenu, Settings
 from utils import delete_after
-from validator.group import is_group_valid
-from handlers.main_menu import show_main_menu
-
 from utils import safe_edit_text, safe_bot_edit_text
+from validator.group import is_group_valid
 
 router = Router()
 
@@ -39,8 +37,6 @@ def user_lock(telegram_id: int) -> asyncio.Lock:
 	return _user_locks[telegram_id]
 
 
-
-
 async def safe_get_user(telegram_id: int) -> Optional[dict]:
 	try:
 		return await get_user(telegram_id)
@@ -54,6 +50,7 @@ async def safe_update_user(**kwargs) -> bool:
 		return True
 	except Exception:
 		return False
+
 
 # --- #8: типизированные данные состояния вместо голого dict --------------
 @dataclass
@@ -88,6 +85,7 @@ async def save_settings_data(state: FSMContext, data: SettingsData) -> None:
 MAX_LOGIN_LENGTH = 64
 MAX_PASSWORD_LENGTH = 128
 
+
 def is_login_valid(login: Optional[str]) -> bool:
 	if not login or not login.strip():
 		return False
@@ -110,6 +108,7 @@ def is_password_valid(password: Optional[str]) -> bool:
 async def notify_invalid_input(message: Message, text: str) -> None:
 	sent_message = await message.answer(f"<b>{text}</b>\nПопробуйте ещё раз.", parse_mode="HTML")
 	await delete_after([sent_message, message], 2)
+
 
 async def get_settings_keyboard(has_changes: bool) -> InlineKeyboardMarkup:
 	buttons = [
@@ -145,7 +144,8 @@ async def get_settings_keyboard(has_changes: bool) -> InlineKeyboardMarkup:
 # настройкам", не рискуя повторным (реентерантным) захватом user_lock,
 # который приводит к дедлоку.
 
-async def _load_or_get_settings_data(callback: CallbackQuery, state: FSMContext, first_open: bool) -> Optional[SettingsData]:
+async def _load_or_get_settings_data(callback: CallbackQuery, state: FSMContext, first_open: bool) -> Optional[
+	SettingsData]:
 	if first_open:
 		user = await safe_get_user(callback.from_user.id)
 		if user is None:
@@ -189,9 +189,6 @@ async def settings_handler(callback: CallbackQuery, state: FSMContext, first_ope
 			return
 
 		await render_settings_menu(callback, state, data)
-
-
-
 
 
 back_to_settings_keyboard = InlineKeyboardMarkup(
@@ -402,10 +399,10 @@ async def save_changes(callback: CallbackQuery, state: FSMContext):
 			await sent_message.edit_text(
 				"Не удалось сохранить изменения. Попробуйте ещё раз позже."
 			)
-			await delete_after(sent_message, 3)
+			await delete_after(sent_message, 8)
 			return
 
-		await delete_after(sent_message, 1)
+		await delete_after(sent_message, 3)
 		await show_main_menu(callback.message, state, True)
 
 

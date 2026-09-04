@@ -1,11 +1,9 @@
-from random import setstate
-
-from aiogram import Router
-from aiogram.types import Message
-from aiogram.fsm.context import  FSMContext
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import F
+from aiogram import Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message
 
 from database import create_user
 from encryption.encryption import encrypt_password
@@ -15,6 +13,7 @@ from utils import delete_after
 from validator.group import is_group_valid
 
 router = Router()
+
 
 async def start_registration(message: Message, state: FSMContext):
 	await state.update_data(telegram_id=message.from_user.id)
@@ -26,6 +25,7 @@ async def start_registration(message: Message, state: FSMContext):
 	)
 
 	await state.set_state(Registration.waiting_for_login)
+
 
 @router.message(Registration.waiting_for_login)
 async def login_handler(message: Message, state: FSMContext):
@@ -45,41 +45,43 @@ async def login_handler(message: Message, state: FSMContext):
 
 
 schedule_parts_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="МФ, РТФ, ЭФ, ИФМИ",
-                callback_data="schedule_part:1",
-	            style="success"
-            ),
-            InlineKeyboardButton(
-                text="ФИСТ, ГФ",
-                callback_data="schedule_part:2",
+	inline_keyboard=[
+		[
+			InlineKeyboardButton(
+				text="МФ, РТФ, ЭФ, ИФМИ",
+				callback_data="schedule_part:1",
 				style="success"
-            )
+			),
+			InlineKeyboardButton(
+				text="ФИСТ, ГФ",
+				callback_data="schedule_part:2",
+				style="success"
+			)
 		],
-	    [
-            InlineKeyboardButton(
-                text="ИАТУ, ИЭФ, ЗВФ ИННО",
-                callback_data="schedule_part:3",
+		[
+			InlineKeyboardButton(
+				text="ИАТУ, ИЭФ, ЗВФ ИННО",
+				callback_data="schedule_part:3",
 				style="success"
-            ),
+			),
 
-            InlineKeyboardButton(
-                text="КЭИ",
-                callback_data="schedule_part:4",
+			InlineKeyboardButton(
+				text="КЭИ",
+				callback_data="schedule_part:4",
 				style="success"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="СФ",
-                callback_data="schedule_part:5",
+			)
+		],
+		[
+			InlineKeyboardButton(
+				text="СФ",
+				callback_data="schedule_part:5",
 				style="success"
-            )
-        ],
-    ]
+			)
+		],
+	]
 )
+
+
 @router.message(Registration.waiting_for_password)
 async def password_handler(message: Message, state: FSMContext):
 	password = encrypt_password(message.text)
@@ -93,6 +95,7 @@ async def password_handler(message: Message, state: FSMContext):
 	)
 
 	await state.set_state(Registration.waiting_for_facult)
+
 
 @router.callback_query(
 	Registration.waiting_for_facult,
@@ -113,28 +116,29 @@ async def facult_handler(callback: CallbackQuery, state: FSMContext):
 
 
 subgroup_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-	    [
-		    InlineKeyboardButton(
-			    text="1 подгруппа",
-			    callback_data="subgroup:1",
+	inline_keyboard=[
+		[
+			InlineKeyboardButton(
+				text="1 подгруппа",
+				callback_data="subgroup:1",
 				style="primary"
-		    ),
-				InlineKeyboardButton(
-			    text="2 подгруппа",
-			    callback_data="subgroup:2",
+			),
+			InlineKeyboardButton(
+				text="2 подгруппа",
+				callback_data="subgroup:2",
 				style="primary"
-		    )
-	    ],
-        [
-            InlineKeyboardButton(
-                text="Пропустить",
-                callback_data="subgroup:skip",
-	            style="danger"
-            )
-        ]
-    ]
+			)
+		],
+		[
+			InlineKeyboardButton(
+				text="Пропустить",
+				callback_data="subgroup:skip",
+				style="danger"
+			)
+		]
+	]
 )
+
 
 @router.message(Registration.waiting_for_group)
 async def group_handler(message: Message, state: FSMContext):
@@ -156,6 +160,7 @@ async def group_handler(message: Message, state: FSMContext):
 		reply_markup=subgroup_keyboard
 	)
 	await state.set_state(Registration.waiting_for_subgroup)
+
 
 @router.callback_query(
 	Registration.waiting_for_subgroup,
