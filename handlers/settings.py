@@ -191,9 +191,7 @@ async def settings_handler(callback: CallbackQuery, state: FSMContext, first_ope
 		await render_settings_menu(callback, state, data)
 
 
-@router.callback_query(Settings.settings, F.data == "back_to_menu")
-async def back_to_menu(callback: CallbackQuery, state: FSMContext):
-	await show_main_menu(callback.message, state, edit_previous_message=True)
+
 
 
 back_to_settings_keyboard = InlineKeyboardMarkup(
