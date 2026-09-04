@@ -14,6 +14,7 @@ from database import get_user, update_user
 from encryption.encryption import encrypt_password
 from handlers.main_menu import show_main_menu
 from states.states import MainMenu, Settings
+from ulstu.schedule import is_group_valid_advanced
 from utils import delete_after
 from utils import safe_edit_text, safe_bot_edit_text
 from validator.group import is_group_valid
@@ -329,11 +330,7 @@ async def schedule_part_handler(callback: CallbackQuery, state: FSMContext):
 			callback.from_user.id,
 		)
 
-		await state.set_state(Settings.settings)
-		# ВАЖНО: не вызываем back_to_settings/settings_handler здесь —
-		# это привело бы к повторному захвату user_lock и дедлоку,
-		# т.к. лок уже держится этим же таском.
-		await render_settings_menu(callback, state, data)
+		await group_button_handler(callback, state)
 
 
 @router.callback_query(Settings.settings, F.data == "settings:group")
@@ -346,18 +343,18 @@ async def group_button_handler(callback: CallbackQuery, state: FSMContext):
 
 @router.message(Settings.waiting_for_group)
 async def group_handler(message: Message, state: FSMContext):
+	data = await get_settings_data(state)
 	group_name = message.text
-	if not is_group_valid(group_name):
+	if not await is_group_valid_advanced(message.chat.id, group_name, override_schedule_part=data.schedule_part):
 		log(
 			"settings",
-			f"Неверный формат группы: {group_name}",
+			f"Группа не найдена: {group_name}",
 			message.from_user.id,
 		)
-		await notify_invalid_input(message, "Неверный формат группы")
+		await notify_invalid_input(message, f"Группа {group_name} не найдена в выбранном вам факультете")
 		return
 
 	async with user_lock(message.from_user.id):
-		data = await get_settings_data(state)
 		data.group_name = group_name
 		data.has_changes = True
 		await save_settings_data(state, data)

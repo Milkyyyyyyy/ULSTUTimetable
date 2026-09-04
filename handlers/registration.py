@@ -11,7 +11,7 @@ from encryption.encryption import encrypt_password
 from handlers.main_menu import show_main_menu
 from states.states import Registration
 from utils import delete_after
-from validator.group import is_group_valid
+from validator.group import is_group_valid, normalize_group
 
 router = Router()
 
@@ -153,7 +153,7 @@ subgroup_keyboard = InlineKeyboardMarkup(
 
 @router.message(Registration.waiting_for_group)
 async def group_handler(message: Message, state: FSMContext):
-	group = message.text
+	group = normalize_group(message.text)
 	if not is_group_valid(group):
 		log(
 			"registration",

@@ -118,8 +118,9 @@ def filter_lessons(
 # ---------------------------------------------------------------------------
 
 def generate_week_schedule_image(
-		week: dict,
-		user_subgroup: int | None = None,
+       week: dict,
+       user_subgroup: int | None = None,
+       group_name: str | None = None,
 ) -> BytesIO:
 
 	days = week.get("days", [])
@@ -245,12 +246,30 @@ def generate_week_schedule_image(
 	# ------------------------------------------------------------------
 
 	week_number = week["week"]
+
 	date_range = week.get("date_range") or ()
-	start_date = date_range[0] if len(date_range) > 0 else ""
-	end_date = date_range[1] if len(date_range) > 1 else ""
+
+	start_date = (
+		date_range[0]
+		if len(date_range) > 0
+		else ""
+	)
+
+	end_date = (
+		date_range[1]
+		if len(date_range) > 1
+		else ""
+	)
+
+	group_title = (
+		group_name
+		if group_name
+		else "Группа не указана"
+	)
 
 	title = (
-		f"Расписание • Неделя {week_number} • "
+		f"Расписание • {group_title} • "
+		f"Неделя {week_number} • "
 		f"{start_date} — {end_date}"
 	)
 
@@ -511,6 +530,19 @@ def generate_week_schedule_image(
 
 				y += 22
 
+				if item["subgroup"] is not None:
+					draw.text(
+						(
+							x1 + 10,
+							y,
+						),
+						f"{item['subgroup']} п/г",
+						fill="black",
+						font=FONT_TYPE,
+					)
+
+					y += 22
+
 				teacher_lines = wrap_text(
 					draw,
 					item["teacher"],
@@ -617,6 +649,9 @@ def calculate_lesson_height(
 
 		# Тип
 		height += 22
+
+		if item["subgroup"] is not None:
+			height += 22
 
 		# Преподаватель
 		teacher_lines = wrap_text(

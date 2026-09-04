@@ -698,7 +698,8 @@ async def schedule_week_image_handler(
 
     image = generate_week_schedule_image(
         week,
-        user_subgroup=user_subgroup,
+        user_subgroup=user["subgroup"],
+        group_name=user["group_name"],
     )
 
     photo = BufferedInputFile(
