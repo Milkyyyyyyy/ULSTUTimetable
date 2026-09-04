@@ -9,6 +9,8 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.context import FSMContext
 from handlers.registration import router as registration_router, start_registration
 from handlers.main_menu import router as main_menu_router, show_main_menu
+from handlers.settings import router as settings_router
+from utils import router as utils_router
 
 from database import init_db, get_user
 
@@ -23,6 +25,8 @@ dp = Dispatcher()
 
 dp.include_router(registration_router)
 dp.include_router(main_menu_router)
+dp.include_router(settings_router)
+dp.include_router(utils_router)
 
 @dp.message(Command("start"))
 async def start(message: Message, state: FSMContext):

@@ -1,21 +1,27 @@
 import aiosqlite
+from pathlib import Path
+import aiosqlite
+
+UNSET = object()
 
 
-DB_PATH = "timetable.db"
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "timetable.db"
 
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                telegram_id INTEGER UNIQUE NOT NULL,
-                ulstu_login TEXT,
-                schedule_part INTEGER,
-                group_name TEXT,
-                subgroup INTEGER,
-                notification_time TEXT,
-                ulstu_password_encrypted TEXT
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER UNIQUE NOT NULL,
+                    ulstu_login TEXT,
+                    ulstu_password_encrypted TEXT,
+                    session_cookies TEXT,
+                    schedule_part INTEGER,
+                    group_name TEXT,
+                    subgroup INTEGER,
+                    notification_time TEXT
             )
         """)
 
@@ -77,10 +83,11 @@ async def update_user(
     telegram_id: int,
     ulstu_login: str | None = None,
     group_name: str | None = None,
-    subgroup: int | None = None,
+    subgroup: int | None | object = UNSET,
     schedule_part: int | None = None,
     notification_time: str | None = None,
     ulstu_password_encrypted: str | None = None,
+    session_cookies: str | None = None,
 ):
     """Изменяет указанные данные пользователя."""
     fields = []
@@ -97,7 +104,8 @@ async def update_user(
     if schedule_part is not None:
         fields.append("schedule_part = ?")
         values.append(schedule_part)
-    if subgroup is not None:
+
+    if subgroup is not UNSET:
         fields.append("subgroup = ?")
         values.append(subgroup)
 
@@ -108,6 +116,10 @@ async def update_user(
     if ulstu_password_encrypted is not None:
         fields.append("ulstu_password_encrypted = ?")
         values.append(ulstu_password_encrypted)
+
+    if session_cookies is not None:
+        fields.append("session_cookies = ?")
+        values.append(session_cookies)
 
     if not fields:
         return
