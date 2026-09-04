@@ -9,6 +9,7 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
+from console_log import log
 from database import get_user, update_user
 from encryption.encryption import encrypt_password
 from handlers.main_menu import show_main_menu
@@ -189,6 +190,7 @@ async def render_settings_menu(callback: CallbackQuery, state: FSMContext, data:
 @router.callback_query(MainMenu.main_menu, F.data == "open_settings")
 async def settings_handler(callback: CallbackQuery, state: FSMContext, first_open: bool = True):
 	async with user_lock(callback.from_user.id):
+		log("settings", "Открытие настроек", callback.from_user.id)
 		await state.set_state(Settings.settings)
 
 		data = await _load_or_get_settings_data(callback, state, first_open)
@@ -229,6 +231,7 @@ async def render_settings_after_message(bot, state: FSMContext, data: SettingsDa
 
 @router.callback_query(Settings.settings, F.data == "settings:login")
 async def login_button_handler(callback: CallbackQuery, state: FSMContext):
+	log("settings", "Изменение логина", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_login)
 	await callback.answer()
 	await safe_edit_text(callback.message, "Введите новый логин:", back_to_settings_keyboard)
@@ -239,6 +242,7 @@ async def login_handler(message: Message, state: FSMContext):
 	login = message.text
 
 	if not is_login_valid(login):
+		log("settings", f"Неверный логин: {login}", message.from_user.id)
 		await notify_invalid_input(message, "Неверный формат логина")
 		return
 
@@ -247,6 +251,7 @@ async def login_handler(message: Message, state: FSMContext):
 		data.ulstu_login = login.strip()
 		data.has_changes = True
 		await save_settings_data(state, data)
+		log("settings", f"Логин изменён на: {login.strip()}", message.from_user.id)
 
 		await message.delete()
 		await state.set_state(Settings.settings)
@@ -255,6 +260,7 @@ async def login_handler(message: Message, state: FSMContext):
 
 @router.callback_query(Settings.settings, F.data == "settings:password")
 async def password_button_handler(callback: CallbackQuery, state: FSMContext):
+	log("settings", "Изменение пароля", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_password)
 	await callback.answer()
 	await safe_edit_text(callback.message, "Введите новый пароль:", back_to_settings_keyboard)
@@ -265,6 +271,7 @@ async def password_handler(message: Message, state: FSMContext):
 	raw_password = message.text
 
 	if not is_password_valid(raw_password):
+		log("settings", "Неверный формат пароля", message.from_user.id)
 		await notify_invalid_input(message, "Неверный формат пароля")
 		return
 
@@ -275,6 +282,7 @@ async def password_handler(message: Message, state: FSMContext):
 		data.ulstu_password_encrypted = password
 		data.has_changes = True
 		await save_settings_data(state, data)
+		log("settings", "Пароль обновлён и зашифрован", message.from_user.id)
 
 		await message.delete()
 		await state.set_state(Settings.settings)
@@ -300,6 +308,7 @@ schedule_parts_keyboard = InlineKeyboardMarkup(
 
 @router.callback_query(Settings.settings, F.data == "settings:facult")
 async def schedule_part_button_handler(callback: CallbackQuery, state: FSMContext):
+	log("settings", "Изменение факультета", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_facult)
 	await callback.answer()
 	await safe_edit_text(callback.message, "Выберите нужный факультет", schedule_parts_keyboard)
@@ -314,6 +323,11 @@ async def schedule_part_handler(callback: CallbackQuery, state: FSMContext):
 		data.schedule_part = part
 		data.has_changes = True
 		await save_settings_data(state, data)
+		log(
+			"settings",
+			f"Факультет/часть изменён на: {part}",
+			callback.from_user.id,
+		)
 
 		await state.set_state(Settings.settings)
 		# ВАЖНО: не вызываем back_to_settings/settings_handler здесь —
@@ -324,6 +338,7 @@ async def schedule_part_handler(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(Settings.settings, F.data == "settings:group")
 async def group_button_handler(callback: CallbackQuery, state: FSMContext):
+	log("settings", "Изменение группы", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_group)
 	await callback.answer()
 	await safe_edit_text(callback.message, "Введите новую группу:", back_to_settings_keyboard)
@@ -333,6 +348,11 @@ async def group_button_handler(callback: CallbackQuery, state: FSMContext):
 async def group_handler(message: Message, state: FSMContext):
 	group_name = message.text
 	if not is_group_valid(group_name):
+		log(
+			"settings",
+			f"Неверный формат группы: {group_name}",
+			message.from_user.id,
+		)
 		await notify_invalid_input(message, "Неверный формат группы")
 		return
 
@@ -341,6 +361,7 @@ async def group_handler(message: Message, state: FSMContext):
 		data.group_name = group_name
 		data.has_changes = True
 		await save_settings_data(state, data)
+		log("settings", f"Группа изменена на: {group_name}", message.from_user.id)
 
 		await message.delete()
 		await state.set_state(Settings.settings)
@@ -362,6 +383,7 @@ subgroup_keyboard = InlineKeyboardMarkup(
 
 @router.callback_query(Settings.settings, F.data == "settings:subgroup")
 async def subgroup_button_handler(callback: CallbackQuery, state: FSMContext):
+	log("settings", "Изменение подгруппы", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_subgroup)
 	await callback.answer()
 	await safe_edit_text(callback.message, "Выберите подгруппу:", subgroup_keyboard)
@@ -377,6 +399,11 @@ async def subgroup_handler(callback: CallbackQuery, state: FSMContext):
 		data.subgroup = subgroup
 		data.has_changes = True
 		await save_settings_data(state, data)
+		log(
+			"settings",
+			f"Подгруппа изменена на: {subgroup}",
+			callback.from_user.id,
+		)
 
 		await state.set_state(Settings.settings)
 		# Аналогично schedule_part_handler — избегаем повторного лока.
@@ -388,6 +415,7 @@ async def subgroup_handler(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(Settings.settings, F.data == "settings:apply")
 async def save_changes(callback: CallbackQuery, state: FSMContext):
 	async with user_lock(callback.from_user.id):
+		log("settings", "Применение изменений", callback.from_user.id)
 		sent_message = await callback.message.answer("Сохраняю изменения..")
 		data = await get_settings_data(state)
 
@@ -403,12 +431,18 @@ async def save_changes(callback: CallbackQuery, state: FSMContext):
 		await callback.answer()
 
 		if not success:
+			log(
+				"settings",
+				"Не удалось сохранить изменения",
+				callback.from_user.id,
+			)
 			await sent_message.edit_text(
 				"Не удалось сохранить изменения. Попробуйте ещё раз позже."
 			)
 			await delete_after(sent_message, 8)
 			return
 
+		log("settings", "Изменения сохранены", callback.from_user.id)
 		await delete_after(sent_message, 3)
 		await show_main_menu(callback.message, state, True)
 
@@ -416,5 +450,6 @@ async def save_changes(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(Settings.settings, F.data == "settings:cancel")
 async def cancel_changes(callback: CallbackQuery, state: FSMContext):
 	async with user_lock(callback.from_user.id):
+		log("settings", "Отмена изменений", callback.from_user.id)
 		await state.clear()
 		await show_main_menu(callback.message, state, True)

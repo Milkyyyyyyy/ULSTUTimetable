@@ -3,6 +3,7 @@ from datetime import datetime, date, timedelta
 
 from aiogram import Bot
 
+from console_log import log
 from database import get_users_for_notification
 from ulstu.schedule import (
 	get_schedule,
@@ -14,6 +15,7 @@ from utils import build_delete_button
 async def notification_worker(bot: Bot):
 	last_time_key = None
 	sent_notifications = set()
+	log("notifications", "Воркер уведомлений стартовал")
 
 	while True:
 		now = datetime.now().astimezone()
@@ -25,6 +27,13 @@ async def notification_worker(bot: Bot):
 			last_time_key = current_time_key
 
 		users = await get_users_for_notification(current_time)
+
+		if users:
+			log(
+				"notifications",
+				f"На {current_time} найдено "
+				f"получателей: {len(users)}",
+			)
 
 		for user in users:
 			notification_key = (
@@ -39,9 +48,10 @@ async def notification_worker(bot: Bot):
 				await send_tomorrow_schedule(bot, user)
 				sent_notifications.add(notification_key)
 			except Exception as e:
-				print(
-					f"Ошибка отправки уведомления "
-					f"пользователю {user['telegram_id']}: {e}"
+				log(
+					"notifications",
+					f"Ошибка отправки: {e}",
+					user["telegram_id"],
 				)
 
 		await asyncio.sleep(50)
@@ -49,10 +59,16 @@ async def notification_worker(bot: Bot):
 
 async def send_tomorrow_schedule(bot: Bot, user: dict):
 	telegram_id = user["telegram_id"]
+	log("notifications", "Отправка расписания на завтра", telegram_id)
 
 	schedule = await get_schedule(telegram_id)
 
 	if not schedule:
+		log(
+			"notifications",
+			"Расписание пустое — пропуск",
+			telegram_id,
+		)
 		return
 
 	tomorrow = date.today() + timedelta(days=1)
@@ -87,3 +103,4 @@ async def send_tomorrow_schedule(bot: Bot, user: dict):
 		parse_mode="HTML",
 		reply_markup=await build_delete_button(message)
 	)
+	log("notifications", "Уведомление отправлено", telegram_id)

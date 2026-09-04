@@ -2,6 +2,8 @@ from pathlib import Path
 
 import aiosqlite
 
+from console_log import log
+
 UNSET = object()
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -26,6 +28,8 @@ async def init_db():
         """)
 
 		await db.commit()
+
+	log("database", f"Таблица users готова ({DB_PATH})")
 
 
 async def get_user(telegram_id: int):
@@ -80,6 +84,14 @@ async def create_user(
 
 		await db.commit()
 
+	log(
+		"database",
+		f"Создан пользователь: login={ulstu_login}, "
+		f"group={group_name}, part={schedule_part}, "
+		f"subgroup={subgroup}",
+		telegram_id,
+	)
+
 
 async def update_user(
 		telegram_id: int,
@@ -95,37 +107,46 @@ async def update_user(
 	"""Изменяет указанные данные пользователя."""
 	fields = []
 	values = []
+	changed = []
 
 	if ulstu_login is not None:
 		fields.append("ulstu_login = ?")
 		values.append(ulstu_login)
+		changed.append("login")
 
 	if group_name is not None:
 		fields.append("group_name = ?")
 		values.append(group_name)
+		changed.append("group")
 
 	if schedule_part is not None:
 		fields.append("schedule_part = ?")
 		values.append(schedule_part)
+		changed.append("schedule_part")
 
 	if subgroup is not UNSET:
 		fields.append("subgroup = ?")
 		values.append(subgroup)
+		changed.append("subgroup")
 
 	if notification_time is not None:
 		fields.append("notification_time = ?")
 		values.append(notification_time)
+		changed.append("notification_time")
 	if notification_enabled is not None:
 		fields.append("notification_enabled = ?")
 		values.append(int(notification_enabled))
+		changed.append("notification_enabled")
 
 	if ulstu_password_encrypted is not None:
 		fields.append("ulstu_password_encrypted = ?")
 		values.append(ulstu_password_encrypted)
+		changed.append("password")
 
 	if session_cookies is not None:
 		fields.append("session_cookies = ?")
 		values.append(session_cookies)
+		changed.append("session_cookies")
 
 	if not fields:
 		return
@@ -144,6 +165,12 @@ async def update_user(
 
 		await db.commit()
 
+	log(
+		"database",
+		f"Обновлены поля: {', '.join(changed)}",
+		telegram_id,
+	)
+
 
 async def delete_user(telegram_id: int):
 	"""Удаляет пользователя."""
@@ -157,6 +184,8 @@ async def delete_user(telegram_id: int):
 		)
 
 		await db.commit()
+
+	log("database", "Пользователь удалён", telegram_id)
 
 
 async def get_users_for_notification(current_time: str):

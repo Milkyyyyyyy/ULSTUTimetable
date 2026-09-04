@@ -13,6 +13,7 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from console_log import log
 from database import get_user, update_user
 from states.states import MainMenu, ScheduleSelection, NotificationSettings
 from ulstu.schedule import (
@@ -150,6 +151,8 @@ async def show_main_menu(
 		state: FSMContext,
 		edit_previous_message: bool = False,
 ):
+	log("main_menu", "Открытие главного меню", message.chat.id)
+
 	await state.clear()
 	await state.set_state(MainMenu.main_menu)
 
@@ -170,6 +173,7 @@ async def show_main_menu(
 
 @router.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
+	log("main_menu", "Назад в главное меню", callback.from_user.id)
 	await show_main_menu(callback.message, state, edit_previous_message=True)
 
 
@@ -294,16 +298,21 @@ async def schedule_button_handler(
 	await callback.answer()
 
 	action = callback.data.split(":", 1)[1]
+	user_id = callback.from_user.id
+	log("main_menu", f"Запрос расписания: {action}", user_id)
 
 	# --------------------------------------------------
 	# Получаем расписание только здесь
 	# --------------------------------------------------
 
 	try:
-		schedule = await get_schedule(
-			callback.from_user.id
-		)
+		schedule = await get_schedule(user_id)
 	except Exception as error:
+		log(
+			"main_menu",
+			f"Ошибка получения расписания ({action}): {error}",
+			user_id,
+		)
 		sent_message = await callback.message.answer(
 			format_schedule_error(error)
 		)
@@ -320,6 +329,7 @@ async def schedule_button_handler(
 			schedule,
 			today,
 		)
+		log("main_menu", f"Отправка расписания на {today}", user_id)
 
 		await send_schedule(
 			callback.message,
@@ -339,6 +349,7 @@ async def schedule_button_handler(
 			schedule,
 			tomorrow,
 		)
+		log("main_menu", f"Отправка расписания на {tomorrow}", user_id)
 
 		await send_schedule(
 			callback.message,
@@ -354,6 +365,7 @@ async def schedule_button_handler(
 	if action == "select":
 
 		if not schedule:
+			log("main_menu", "Расписание пустое при выборе даты", user_id)
 			await callback.message.edit_text(
 				"❌ Расписание отсутствует.\n\n"
 				"💡 Возможно, оно ещё не опубликовано "
@@ -378,6 +390,7 @@ async def schedule_button_handler(
 			week_index=0,
 		)
 
+		log("main_menu", "Открыт выбор дня", user_id)
 		await callback.message.edit_text(
 			text="📅 <b>Выберите день:</b>",
 			parse_mode="HTML",
@@ -403,6 +416,11 @@ async def schedule_week_handler(
 	schedule = data.get("schedule")
 
 	if not schedule:
+		log(
+			"main_menu",
+			"Нет schedule в FSM при переключении недели",
+			callback.from_user.id,
+		)
 		await callback.message.edit_text(
 			"Не удалось получить расписание. Откройте выбор даты заново."
 		)
@@ -411,6 +429,11 @@ async def schedule_week_handler(
 	# Получаем индекс недели
 	week_index = int(
 		callback.data.split(":", 1)[1]
+	)
+	log(
+		"main_menu",
+		f"Переключение на неделю index={week_index}",
+		callback.from_user.id,
 	)
 
 	# Защита от выхода за пределы
@@ -468,6 +491,11 @@ async def schedule_day_handler(
 	schedule = data.get("schedule")
 
 	if not schedule:
+		log(
+			"main_menu",
+			"Нет schedule в FSM при выборе дня",
+			callback.from_user.id,
+		)
 		await callback.message.edit_text(
 			"Не удалось получить расписание. Откройте выбор даты заново."
 		)
@@ -478,6 +506,11 @@ async def schedule_day_handler(
 
 	week_index = int(week_index)
 	day_index = int(day_index)
+	log(
+		"main_menu",
+		f"Выбран день week={week_index}, day={day_index}",
+		callback.from_user.id,
+	)
 
 	# Защита от некорректных индексов
 	if week_index < 0 or week_index >= len(schedule):
@@ -573,22 +606,28 @@ async def schedule_week_image_handler(
 	# --------------------------------------------------
 
 	action = callback.data.split(":", 1)[1]
+	user_id = callback.from_user.id
+	log("main_menu", f"Запрос картинки недели: {action}", user_id)
 
 	# --------------------------------------------------
 	# Получаем полный schedule
 	# --------------------------------------------------
 
 	try:
-		schedule = await get_schedule(
-			callback.from_user.id
-		)
+		schedule = await get_schedule(user_id)
 	except Exception as error:
+		log(
+			"main_menu",
+			f"Ошибка получения расписания (week:{action}): {error}",
+			user_id,
+		)
 		await callback.message.answer(
 			format_schedule_error(error)
 		)
 		return
 
 	if not schedule:
+		log("main_menu", "Расписание пустое при запросе недели", user_id)
 		await callback.message.answer(
 			"❌ Расписание отсутствует.\n\n"
 			"💡 Возможно, оно ещё не опубликовано "
@@ -680,6 +719,11 @@ async def schedule_week_image_handler(
 	# Отправляем
 	# --------------------------------------------------
 
+	log(
+		"main_menu",
+		f"Отправка картинки недели {week['week']}",
+		user_id,
+	)
 	await callback.message.answer_photo(
 		photo=photo,
 		caption=caption,
@@ -742,9 +786,16 @@ async def notification_settings_menu_button_handler(callback: CallbackQuery, sta
 
 	telegram_id = callback.from_user.id
 	user = await get_user(telegram_id)
+	action = callback.data.split(":")[1]
+	log("main_menu", f"Настройки оповещений: {action}", telegram_id)
 
-	if callback.data.split(":")[1] == "toggle":
+	if action == "toggle":
 		enabled = not bool(user['notification_enabled'])
+		log(
+			"main_menu",
+			f"Автооповещение -> {'ВКЛ' if enabled else 'ВЫКЛ'}",
+			telegram_id,
+		)
 		await update_user(
 			telegram_id,
 			notification_enabled=enabled
@@ -818,6 +869,7 @@ async def time_handle(
 		await delete_after(sent_message, 5)
 		return
 
+	log("main_menu", f"Установлено время оповещения: {time}", message.chat.id)
 	await update_user(
 		message.chat.id,
 		notification_time=time

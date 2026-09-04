@@ -5,6 +5,7 @@ from aiogram.types import CallbackQuery
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import Message
 
+from console_log import log
 from database import create_user
 from encryption.encryption import encrypt_password
 from handlers.main_menu import show_main_menu
@@ -16,7 +17,10 @@ router = Router()
 
 
 async def start_registration(message: Message, state: FSMContext):
-	await state.update_data(telegram_id=message.from_user.id)
+	user_id = message.from_user.id
+	log("registration", "Начало регистрации", user_id)
+
+	await state.update_data(telegram_id=user_id)
 	await message.answer(
 		"Ты ещё незарегестрирован.\n"
 		"Давай настроим бота.\n\n"
@@ -30,6 +34,7 @@ async def start_registration(message: Message, state: FSMContext):
 @router.message(Registration.waiting_for_login)
 async def login_handler(message: Message, state: FSMContext):
 	login = message.text
+	log("registration", f"Введён логин: {login}", message.from_user.id)
 
 	await state.update_data(login=login)
 	await message.answer(
@@ -84,6 +89,7 @@ schedule_parts_keyboard = InlineKeyboardMarkup(
 
 @router.message(Registration.waiting_for_password)
 async def password_handler(message: Message, state: FSMContext):
+	log("registration", "Пароль получен и зашифрован", message.from_user.id)
 	password = encrypt_password(message.text)
 	await message.delete()
 
@@ -103,6 +109,11 @@ async def password_handler(message: Message, state: FSMContext):
 )
 async def facult_handler(callback: CallbackQuery, state: FSMContext):
 	part = int(callback.data.split(":")[1])
+	log(
+		"registration",
+		f"Выбран факультет/часть: {part}",
+		callback.from_user.id,
+	)
 
 	await state.update_data(schedule_part=part)
 
@@ -144,6 +155,11 @@ subgroup_keyboard = InlineKeyboardMarkup(
 async def group_handler(message: Message, state: FSMContext):
 	group = message.text
 	if not is_group_valid(group):
+		log(
+			"registration",
+			f"Неверный формат группы: {group}",
+			message.from_user.id,
+		)
 		sent_message = await message.answer(
 			"<b>Неверный формат группы</b>\n"
 			"Попробуйте ещё раз.",
@@ -151,6 +167,8 @@ async def group_handler(message: Message, state: FSMContext):
 		)
 		await delete_after([sent_message, message], 5)
 		return
+
+	log("registration", f"Введена группа: {group}", message.from_user.id)
 	await state.update_data(group=group)
 
 	await message.answer(
@@ -170,8 +188,14 @@ async def subgroup_handler(callback: CallbackQuery, state: FSMContext):
 	subgroup = callback.data.split(":")[1]
 	if subgroup == "skip":
 		await state.update_data(subgroup=None)
+		log("registration", "Подгруппа пропущена", callback.from_user.id)
 	else:
 		await state.update_data(subgroup=int(subgroup))
+		log(
+			"registration",
+			f"Выбрана подгруппа: {subgroup}",
+			callback.from_user.id,
+		)
 
 	previous_message = await callback.message.edit_text(
 		"Отлично!\n"
@@ -180,6 +204,12 @@ async def subgroup_handler(callback: CallbackQuery, state: FSMContext):
 	)
 
 	data = await state.get_data()
+	log(
+		"registration",
+		f"Создание пользователя: group={data['group']}, "
+		f"part={data['schedule_part']}",
+		callback.from_user.id,
+	)
 	await create_user(
 		telegram_id=data['telegram_id'],
 		ulstu_login=data['login'],
@@ -195,4 +225,5 @@ async def subgroup_handler(callback: CallbackQuery, state: FSMContext):
 	)
 	await delete_after(previous_message, 2)
 
+	log("registration", "Регистрация завершена", callback.from_user.id)
 	await show_main_menu(previous_message, state)

@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from dotenv import load_dotenv
 
+from console_log import log
 from database import init_db, get_user, get_registered_users
 from handlers.main_menu import router as main_menu_router, show_main_menu
 from handlers.registration import router as registration_router, start_registration
@@ -36,6 +37,7 @@ async def restore_main_menu_states(
 		bot: Bot
 ):
 	users = await get_registered_users()
+	log("bot", f"Восстановление FSM для {len(users)} пользователей")
 
 	for user in users:
 		telegram_id = user["telegram_id"]
@@ -48,18 +50,27 @@ async def restore_main_menu_states(
 
 		await context.set_state(MainMenu.main_menu)
 
+	log("bot", "FSM главного меню восстановлен")
+
 
 @dp.message(Command("start"))
 async def start(message: Message, state: FSMContext):
-	user = await get_user(message.from_user.id)
+	user_id = message.from_user.id
+	user = await get_user(user_id)
+
 	if user is None:
+		log("bot", "Команда /start — новый пользователь, старт регистрации", user_id)
 		await start_registration(message, state)
 	else:
+		log("bot", "Команда /start — открытие главного меню", user_id)
 		await show_main_menu(message, state)
 
 
 async def main():
+	log("bot", "Инициализация базы данных...")
 	await init_db()
+	log("bot", "База данных готова")
+
 	session = AiohttpSession(proxy=BOT_PROXY) if BOT_PROXY else AiohttpSession()
 
 	bot = Bot(
@@ -67,15 +78,22 @@ async def main():
 		session=session
 	)
 
-	print("Бот запускается...")
+	if BOT_PROXY:
+		log("bot", f"Используется прокси: {BOT_PROXY}")
+
+	log("bot", "Бот запускается...")
 	await restore_main_menu_states(dp, bot)
 
 	notification_task = asyncio.create_task(
 		notification_worker(bot)
 	)
+	log("bot", "Воркер уведомлений запущен")
+
 	try:
+		log("bot", "Polling запущен")
 		await dp.start_polling(bot)
 	finally:
+		log("bot", "Остановка бота...")
 		notification_task.cancel()
 
 		try:
@@ -84,6 +102,7 @@ async def main():
 			pass
 
 		await bot.session.close()
+		log("bot", "Бот остановлен")
 
 
 if __name__ == '__main__':

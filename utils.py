@@ -5,6 +5,8 @@ from aiogram import Router, F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
+from console_log import log
+
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -72,5 +74,6 @@ async def build_delete_button(message: Message):
 )
 async def delete_on_button(callback: CallbackQuery):
 	await callback.answer()
+	log("utils", "Удаление сообщения по кнопке", callback.from_user.id)
 	message = callback.message
 	await message.delete()

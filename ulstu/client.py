@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 import aiohttp
 from bs4 import BeautifulSoup
 
+from console_log import log
 from database import get_user, update_user
 from encryption.encryption import decrypt_password
 from validator.group import normalize_group
@@ -69,8 +70,11 @@ def serialize_cookies(session: aiohttp.ClientSession) -> str:
 async def login(
 		session: aiohttp.ClientSession,
 		login_data: str,
-		password: str
+		password: str,
+		telegram_id: int | None = None,
 ) -> bool:
+	log("ulstu.client", f"Авторизация логином {login_data}", telegram_id)
+
 	response = await session.get(LOGIN_URL)
 	response.raise_for_status()
 
@@ -87,7 +91,14 @@ async def login(
 
 	response.raise_for_status()
 
-	return "auth/login" not in str(response.url)
+	success = "auth/login" not in str(response.url)
+
+	if success:
+		log("ulstu.client", "Авторизация успешна", telegram_id)
+	else:
+		log("ulstu.client", "Авторизация не удалась", telegram_id)
+
+	return success
 
 
 async def get_schedule_page(
@@ -151,6 +162,11 @@ async def get_schedule_groups(
 		)
 
 	schedule_url = SCHEDULE_URLS[schedule_part]
+	log(
+		"ulstu.client",
+		f"Запрос списка групп, часть={schedule_part}",
+		telegram_id,
+	)
 
 	saved_cookies = load_cookies(
 		user["session_cookies"]
@@ -169,9 +185,10 @@ async def get_schedule_groups(
 		)
 
 		if not schedule_is_available:
-			print(
-				"Сохранённая сессия истекла. "
-				"Выполняем авторизацию..."
+			log(
+				"ulstu.client",
+				"Сессия истекла, повторная авторизация",
+				telegram_id,
 			)
 
 			session.cookie_jar.clear()
@@ -179,7 +196,8 @@ async def get_schedule_groups(
 			auth_success = await login(
 				session,
 				login_data,
-				password
+				password,
+				telegram_id=telegram_id,
 			)
 
 			if not auth_success:
@@ -207,10 +225,16 @@ async def get_schedule_groups(
 					"после авторизации"
 				)
 
-		return parse_groups(
+		groups = parse_groups(
 			schedule_html,
 			schedule_url
 		)
+		log(
+			"ulstu.client",
+			f"Получено групп: {len(groups)}",
+			telegram_id,
+		)
+		return groups
 
 
 async def get_group_schedule(
@@ -229,6 +253,11 @@ async def get_group_schedule(
 	group_name = normalize_group(
 		user["group_name"]
 	)
+	log(
+		"ulstu.client",
+		f"Запрос HTML расписания группы {user['group_name']}",
+		telegram_id,
+	)
 
 	groups = await get_schedule_groups(
 		telegram_id
@@ -242,6 +271,11 @@ async def get_group_schedule(
 			break
 
 	if group_url is None:
+		log(
+			"ulstu.client",
+			f"Группа {user['group_name']} не найдена",
+			telegram_id,
+		)
 		raise ValueError(
 			f"Группа {user['group_name']} "
 			"не найдена в расписании"
@@ -268,10 +302,20 @@ async def get_group_schedule(
 		response.raise_for_status()
 
 		if "auth/login" in str(response.url):
+			log(
+				"ulstu.client",
+				"Сессия недействительна при запросе группы",
+				telegram_id,
+			)
 			raise RuntimeError(
 				"Сессия УлГТУ больше недействительна"
 			)
 
 		html = await response.text()
+		log(
+			"ulstu.client",
+			f"HTML расписания получен ({len(html)} символов)",
+			telegram_id,
+		)
 
 		return html

@@ -8,6 +8,7 @@ from pathlib import Path
 from aiogram.types import Message
 from bs4 import BeautifulSoup
 
+from console_log import log
 from database import get_user
 from ulstu.client import get_group_schedule
 from utils import build_delete_button
@@ -236,15 +237,30 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 		group_name
 	)
 
+	log(
+		"ulstu.schedule",
+		f"Запрос расписания: group={user['group_name']}, "
+		f"part={schedule_part}",
+		telegram_id,
+	)
+
 	# Сначала проверяем локальный кэш.
 	cached_data = load_schedule_cache(cache_path)
 
 	if cached_data is not None:
-		print("Используем расписание из кэша")
+		log(
+			"ulstu.schedule",
+			"Используем расписание из кэша",
+			telegram_id,
+		)
 		return cached_data["schedule"]
 
 	# Только теперь идём в УлГТУ.
-	print("Кэш отсутствует или устарел. Обновляем расписание...")
+	log(
+		"ulstu.schedule",
+		"Кэш отсутствует или устарел — обновляем",
+		telegram_id,
+	)
 
 	html = await get_group_schedule(telegram_id)
 
@@ -255,6 +271,12 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 		group_name,
 		schedule_part,
 		schedule
+	)
+	log(
+		"ulstu.schedule",
+		f"Расписание обновлено и сохранено в кэш "
+		f"({len(schedule)} недель)",
+		telegram_id,
 	)
 
 	return schedule
