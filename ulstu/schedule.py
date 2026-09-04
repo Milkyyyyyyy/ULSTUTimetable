@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from html import escape
@@ -257,6 +258,85 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 	)
 
 	return schedule
+
+
+def format_schedule_error(error: BaseException) -> str:
+	"""
+	Превращает ошибку получения расписания
+	в понятное сообщение с подсказкой.
+	"""
+
+	message = str(error)
+
+	if (
+		"Авторизация на УлГТУ не удалась" in message
+		or "Сессия УлГТУ больше недействительна" in message
+		or "после авторизации" in message
+	):
+		return (
+			"❌ Не удалось авторизоваться в системе УлГТУ.\n\n"
+			"Возможные причины:\n"
+			"• неверный логин или пароль\n"
+			"• временные проблемы личного кабинета\n\n"
+			"💡 Проверьте логин и пароль в ⚙ Настройки "
+			"и нажмите «Применить изменения»."
+		)
+
+	if "не найдена в расписании" in message:
+		return (
+			"❌ Группа не найдена в расписании.\n\n"
+			"Возможные причины:\n"
+			"• опечатка в названии группы\n"
+			"• выбран неверный факультет "
+			"(часть расписания)\n\n"
+			"💡 Проверьте группу и факультет "
+			"в ⚙ Настройки."
+		)
+
+	if "Неизвестная часть расписания" in message:
+		return (
+			"❌ Некорректный факультет "
+			"в настройках.\n\n"
+			"💡 Выберите факультет заново "
+			"в ⚙ Настройки."
+		)
+
+	if "Пользователь не найден" in message:
+		return (
+			"❌ Профиль не найден.\n\n"
+			"💡 Пройдите регистрацию заново "
+			"через /start."
+		)
+
+	if isinstance(
+		error,
+		(TimeoutError, asyncio.TimeoutError),
+	) or "Timeout" in type(error).__name__:
+		return (
+			"❌ Сервер УлГТУ не ответил вовремя.\n\n"
+			"💡 Попробуйте ещё раз чуть позже."
+		)
+
+	error_name = type(error).__name__
+
+	if (
+		"ClientError" in error_name
+		or "ClientResponseError" in error_name
+		or "Connection" in error_name
+	):
+		return (
+			"❌ Не удалось связаться "
+			"с сервером УлГТУ.\n\n"
+			"💡 Проверьте интернет "
+			"и попробуйте позже."
+		)
+
+	return (
+		"❌ Не удалось получить расписание.\n\n"
+		f"Причина: {message or error_name}\n\n"
+		"💡 Попробуйте позже или проверьте данные "
+		"в ⚙ Настройки."
+	)
 
 
 def is_cache_fresh(updated_at: str) -> bool:

@@ -15,7 +15,12 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database import get_user, update_user
 from states.states import MainMenu, ScheduleSelection, NotificationSettings
-from ulstu.schedule import get_schedule_for_date, get_schedule, send_schedule
+from ulstu.schedule import (
+	get_schedule_for_date,
+	get_schedule,
+	send_schedule,
+	format_schedule_error,
+)
 from ulstu.schedule_image import generate_week_schedule_image
 from utils import safe_edit_text, build_delete_button, delete_after
 
@@ -294,7 +299,16 @@ async def schedule_button_handler(
 	# Получаем расписание только здесь
 	# --------------------------------------------------
 
-	schedule = await get_schedule(callback.from_user.id)
+	try:
+		schedule = await get_schedule(
+			callback.from_user.id
+		)
+	except Exception as error:
+		sent_message = await callback.message.answer(
+			format_schedule_error(error)
+		)
+		await delete_after(sent_message, 8)
+		return
 
 	# --------------------------------------------------
 	# Сегодня
@@ -341,7 +355,9 @@ async def schedule_button_handler(
 
 		if not schedule:
 			await callback.message.edit_text(
-				"Расписание отсутствует."
+				"❌ Расписание отсутствует.\n\n"
+				"💡 Возможно, оно ещё не опубликовано "
+				"на сайте УлГТУ. Попробуйте позже."
 			)
 			return
 
@@ -562,13 +578,21 @@ async def schedule_week_image_handler(
 	# Получаем полный schedule
 	# --------------------------------------------------
 
-	schedule = await get_schedule(
-		callback.from_user.id
-	)
+	try:
+		schedule = await get_schedule(
+			callback.from_user.id
+		)
+	except Exception as error:
+		await callback.message.answer(
+			format_schedule_error(error)
+		)
+		return
 
 	if not schedule:
 		await callback.message.answer(
-			"Расписание отсутствует."
+			"❌ Расписание отсутствует.\n\n"
+			"💡 Возможно, оно ещё не опубликовано "
+			"на сайте УлГТУ. Попробуйте позже."
 		)
 		return
 
