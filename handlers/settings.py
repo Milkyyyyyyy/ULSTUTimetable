@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections import defaultdict
 from dataclasses import dataclass, asdict
 from typing import Optional
@@ -17,6 +18,7 @@ from utils import safe_edit_text, safe_bot_edit_text
 from validator.group import is_group_valid
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 # --- #7: работаем только в приватных чатах -------------------------------
 router.message.filter(F.chat.type == "private")
@@ -41,6 +43,7 @@ async def safe_get_user(telegram_id: int) -> Optional[dict]:
 	try:
 		return await get_user(telegram_id)
 	except Exception:
+		logger.exception("Failed to load user %s", telegram_id)
 		return None
 
 
@@ -49,6 +52,10 @@ async def safe_update_user(**kwargs) -> bool:
 		await update_user(**kwargs)
 		return True
 	except Exception:
+		logger.exception(
+			"Failed to update user %s",
+			kwargs.get("telegram_id"),
+		)
 		return False
 
 

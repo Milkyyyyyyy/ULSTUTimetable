@@ -245,11 +245,13 @@ def generate_week_schedule_image(
 	# ------------------------------------------------------------------
 
 	week_number = week["week"]
-	date_range = week["date_range"]
+	date_range = week.get("date_range") or ()
+	start_date = date_range[0] if len(date_range) > 0 else ""
+	end_date = date_range[1] if len(date_range) > 1 else ""
 
 	title = (
 		f"Расписание • Неделя {week_number} • "
-		f"{date_range[0]} — {date_range[1]}"
+		f"{start_date} — {end_date}"
 	)
 
 	draw.text(

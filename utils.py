@@ -1,10 +1,12 @@
 import asyncio
+import logging
 
 from aiogram import Router, F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 
 async def delete_after(
@@ -22,8 +24,13 @@ async def delete_after(
 		for message in messages_to_delete:
 			try:
 				await message.delete()
-			except Exception:
+			except TelegramBadRequest:
 				pass
+			except Exception:
+				logger.exception(
+					"Failed to delete message %s",
+					message.message_id,
+				)
 
 	asyncio.create_task(delete())
 

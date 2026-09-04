@@ -12,15 +12,32 @@ from utils import build_delete_button
 
 
 async def notification_worker(bot: Bot):
+	last_time_key = None
+	sent_notifications = set()
+
 	while True:
 		now = datetime.now().astimezone()
 		current_time = now.strftime("%H:%M")
+		current_time_key = now.strftime("%Y-%m-%d %H:%M")
+
+		if current_time_key != last_time_key:
+			sent_notifications.clear()
+			last_time_key = current_time_key
 
 		users = await get_users_for_notification(current_time)
 
 		for user in users:
+			notification_key = (
+				user["telegram_id"],
+				current_time_key,
+			)
+
+			if notification_key in sent_notifications:
+				continue
+
 			try:
 				await send_tomorrow_schedule(bot, user)
+				sent_notifications.add(notification_key)
 			except Exception as e:
 				print(
 					f"Ошибка отправки уведомления "

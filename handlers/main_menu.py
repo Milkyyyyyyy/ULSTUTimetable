@@ -40,6 +40,14 @@ WELCOME_MESSAGES = [
 ]
 
 
+def build_empty_day(target_date: date) -> dict:
+	return {
+		"day": target_date.strftime("%d.%m.%Y"),
+		"date": target_date.strftime("%d.%m.%Y"),
+		"lessons": [],
+	}
+
+
 async def build_main_menu_buttons(
 		telegram_id: int,
 ) -> InlineKeyboardMarkup:
@@ -192,19 +200,21 @@ def build_schedule_keyboard(
 	# --------------------------------------------------
 
 	for row_index in range(3):
-		left_index = row_index
-		right_index = row_index + 3
+		row_buttons = []
 
-		builder.row(
-			InlineKeyboardButton(
-				text=days[left_index]["day"],
-				callback_data=f"schedule_day:{week_index}:{left_index}",
-			),
-			InlineKeyboardButton(
-				text=days[right_index]["day"],
-				callback_data=f"schedule_day:{week_index}:{right_index}",
-			),
-		)
+		for day_index in (row_index, row_index + 3):
+			if day_index >= len(days):
+				continue
+
+			row_buttons.append(
+				InlineKeyboardButton(
+					text=days[day_index]["day"],
+					callback_data=f"schedule_day:{week_index}:{day_index}",
+				)
+			)
+
+		if row_buttons:
+			builder.row(*row_buttons)
 
 	# Воскресенье отдельно
 	if len(days) > 6:
@@ -291,16 +301,16 @@ async def schedule_button_handler(
 	# --------------------------------------------------
 
 	if action == "today":
+		today = date.today()
 		schedule_date = get_schedule_for_date(
 			schedule,
-			date.today(),
+			today,
 		)
 
-		if schedule_date is not None:
-			await send_schedule(
-				callback.message,
-				schedule_date,
-			)
+		await send_schedule(
+			callback.message,
+			schedule_date or build_empty_day(today),
+		)
 
 		return
 
@@ -316,11 +326,10 @@ async def schedule_button_handler(
 			tomorrow,
 		)
 
-		if schedule_date is not None:
-			await send_schedule(
-				callback.message,
-				schedule_date,
-			)
+		await send_schedule(
+			callback.message,
+			schedule_date or build_empty_day(tomorrow),
+		)
 
 		return
 
@@ -503,7 +512,7 @@ def get_week_index_for_date(
 
 		date_range = week.get("date_range")
 
-		if not date_range:
+		if not date_range or len(date_range) < 2:
 			continue
 
 		start_date = parse_schedule_date(
@@ -514,17 +523,23 @@ def get_week_index_for_date(
 			date_range[1]
 		)
 
+		if start_date is None or end_date is None:
+			continue
+
 		if start_date <= target_date <= end_date:
 			return week_index
 
 	return None
 
 
-def parse_schedule_date(value: str) -> date:
-	return datetime.strptime(
-		value,
-		"%d.%m.%Y",
-	).date()
+def parse_schedule_date(value: str) -> date | None:
+	try:
+		return datetime.strptime(
+			value,
+			"%d.%m.%Y",
+		).date()
+	except ValueError:
+		return None
 
 
 @router.callback_query(
@@ -597,6 +612,9 @@ async def schedule_week_image_handler(
 		return
 
 	week = schedule[week_index]
+	date_range = week.get("date_range") or ()
+	start_date = date_range[0] if len(date_range) > 0 else ""
+	end_date = date_range[1] if len(date_range) > 1 else ""
 
 	# --------------------------------------------------
 	# Получаем подгруппу пользователя
@@ -631,7 +649,7 @@ async def schedule_week_image_handler(
 
 	caption = (
 		f"📅 <b>Расписание на неделю {week['week']}</b>\n"
-		f"{week['date_range'][0]} — {week['date_range'][1]}"
+		f"{start_date} — {end_date}"
 	)
 
 	# --------------------------------------------------

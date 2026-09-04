@@ -1,5 +1,6 @@
 import json
 import re
+from html import escape
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
@@ -260,7 +261,17 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 
 def is_cache_fresh(updated_at: str) -> bool:
 	updated = datetime.fromisoformat(updated_at)
-	return datetime.now().astimezone() - updated < CACHE_TTL
+
+	if updated.tzinfo is None:
+		now = datetime.now()
+	else:
+		now = datetime.now().astimezone()
+
+	return now - updated < CACHE_TTL
+
+
+def escape_html(value) -> str:
+	return escape(str(value), quote=False)
 
 
 def get_cache_path(schedule_part: int, group_name: str) -> Path:
@@ -350,7 +361,7 @@ async def format_day_schedule(
 	# Заголовок
 	# --------------------------------------------------
 
-	schedule_date = day_schedule["date"]
+	schedule_date = escape_html(day_schedule["date"])
 
 	message = (
 		f"📅 <b>Расписание на {schedule_date}</b>\n\n"
@@ -389,23 +400,28 @@ async def format_day_schedule(
 		lesson_text = (
 			f"<blockquote>"
 			f"<b>{lesson['lesson_number']}-я пара "
-			f"({lesson['time']})</b>\n\n"
+			f"({escape_html(lesson['time'])})</b>\n\n"
 		)
 
 		for item in visible_lessons:
+			item = {
+				**item,
+				"room": escape_html(item["room"]),
+			}
+
 			lesson_text += (
-				f"<b><u>{item['type']}</u>"
-				f"{item['subject']}</b>\n"
+				f"<b><u>{escape_html(item['type'])}</u>"
+				f"{escape_html(item['subject'])}</b>\n"
 			)
 
 			if item["subgroup"] is not None:
 				lesson_text += (
 					f"<b>Подгруппа:</b> "
-					f"{item['subgroup']}\n"
+					f"{escape_html(item['subgroup'])}\n"
 				)
 
 			lesson_text += (
-				f"\n{item['teacher']}\n"
+				f"\n{escape_html(item['teacher'])}\n"
 				f"<b>Аудитория:</b> {item['room']}\n\n"
 			)
 

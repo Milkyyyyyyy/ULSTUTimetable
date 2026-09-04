@@ -19,6 +19,7 @@ from utils import router as utils_router
 load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_PROXY = os.getenv("BOT_PROXY")
 if not BOT_TOKEN:
 	raise ValueError("Не найден BOT_TOKEN в .env")
 
@@ -59,9 +60,7 @@ async def start(message: Message, state: FSMContext):
 
 async def main():
 	await init_db()
-	session = AiohttpSession(
-		proxy="socks5://127.0.0.1:2080"
-	)
+	session = AiohttpSession(proxy=BOT_PROXY) if BOT_PROXY else AiohttpSession()
 
 	bot = Bot(
 		token=BOT_TOKEN,

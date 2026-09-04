@@ -9,6 +9,11 @@ from encryption.encryption import decrypt_password
 from validator.group import normalize_group
 
 LOGIN_URL = "https://lk.ulstu.ru/timetable/"
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(
+	total=30,
+	connect=10,
+	sock_read=20,
+)
 
 SCHEDULE_URLS = {
 	1: (
@@ -152,7 +157,8 @@ async def get_schedule_groups(
 	)
 
 	async with aiohttp.ClientSession(
-			cookies=saved_cookies
+			cookies=saved_cookies,
+			timeout=REQUEST_TIMEOUT,
 	) as session:
 
 		schedule_is_available, schedule_html = (
@@ -251,7 +257,8 @@ async def get_group_schedule(
 	)
 
 	async with aiohttp.ClientSession(
-			cookies=cookies
+			cookies=cookies,
+			timeout=REQUEST_TIMEOUT,
 	) as session:
 
 		response = await session.get(
