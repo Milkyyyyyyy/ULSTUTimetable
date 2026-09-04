@@ -13,4 +13,4 @@ def normalize_group(group: str) -> str:
     group = re.sub(r"\s*-\s*", "-", group)
     group = re.sub(r"\s+", "", group)
 
-    return group
+    return group.upper()

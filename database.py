@@ -41,6 +41,7 @@ async def create_user(
         telegram_id: int,
         ulstu_login: str,
         ulstu_password_encrypted: str,
+        schedule_part: int,
         group_name: str,
         subgroup: int,
         notification_time: str
@@ -53,16 +54,18 @@ async def create_user(
 				ulstu_login,
 				group_name,
 				subgroup,
+				schedule_part,
 				notification_time,
 				ulstu_password_encrypted
 			)
-			VALUES (?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
 			""",
             (
                 telegram_id,
                 ulstu_login,
                 group_name,
                 subgroup,
+                schedule_part,
                 notification_time,
                 ulstu_password_encrypted,
             )
@@ -75,6 +78,7 @@ async def update_user(
     ulstu_login: str | None = None,
     group_name: str | None = None,
     subgroup: int | None = None,
+    schedule_part: int | None = None,
     notification_time: str | None = None,
     ulstu_password_encrypted: str | None = None,
 ):
@@ -90,6 +94,9 @@ async def update_user(
         fields.append("group_name = ?")
         values.append(group_name)
 
+    if schedule_part is not None:
+        fields.append("schedule_part = ?")
+        values.append(schedule_part)
     if subgroup is not None:
         fields.append("subgroup = ?")
         values.append(subgroup)

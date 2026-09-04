@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
-print(ENCRYPTION_KEY)
 
 if not ENCRYPTION_KEY:
     raise ValueError("Не найден ENCRYPTION_KEY в .env")
