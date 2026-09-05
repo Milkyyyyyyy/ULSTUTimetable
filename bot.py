@@ -57,6 +57,7 @@ async def restore_main_menu_states(
 async def start(message: Message, state: FSMContext):
 	user_id = message.from_user.id
 	user = await get_user(user_id)
+	await message.delete()
 
 	if user is None:
 		log("bot", "Команда /start — новый пользователь, старт регистрации", user_id)
