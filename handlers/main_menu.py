@@ -27,23 +27,44 @@ from utils import safe_edit_text, build_delete_button, delete_after
 
 router = Router()
 
-WELCOME_MESSAGES = [
-    "С возвращением!",
-    "Добро пожаловать обратно!",
-    "Рад снова тебя видеть.",
-    "Что сегодня по расписанию?",
-    "Проверим расписание?",
-    "Готово. Можно посмотреть расписание.",
-    "Расписание готово.",
-    "Можно начинать.",
-    "Что тебя ждёт сегодня?",
-    "Посмотрим, что запланировано.",
-    "Всё готово к работе.",
-    "Добро пожаловать!",
-    "Хорошего дня!",
-    "Давай посмотрим расписание.",
-    "Расписание на месте.",
-]
+WELCOME_MESSAGES = {
+    "night": [
+        "Доброй ночи.",
+        "Расписание подождёт до утра.",
+        "Спишь? А расписание не спит.",
+        "Ночью лучше спать, но давай посмотрим.",
+        "Надеюсь, ты просто проверяешь пары, а не садишься за курсач.",
+        "Кто-то доделывает лабы в последнюю ночь?"
+    ],
+    "early_morning": [
+        "Доброе утро.",
+        "Ещё темно, а мы уже смотрим расписание.",
+        "Ранняя пташка? Доброе утро.",
+        "Кто рано встает, тому первую пару не проспать.",
+        "Герой ранних подъёмов. Доброе утро."
+    ],
+    "morning": [
+        "Доброе утро.",
+        "Новый день — новые пары.",
+        "Доброе утро. Что у нас сегодня?",
+        "Просыпаемся и смотрим расписание.",
+        "С добрым утром. Надеюсь, первая пара не слишком душная."
+    ],
+    "day": [
+        "Добрый день.",
+        "Привет. Что там по расписанию?",
+        "Добрый день. Чем могу помочь?",
+        "Учёба в самом разгаре.",
+        "Смотрим пары?"
+    ],
+    "evening": [
+        "Добрый вечер.",
+        "Пары кончились? Смотрим планы на завтра.",
+        "День окончен. Что там дальше по расписанию?",
+        "Вечер. Можно выдохнуть.",
+        "Добрый вечер. Завтра к какой паре?"
+    ],
+}
 
 
 def build_empty_day(target_date: date) -> dict:
@@ -53,6 +74,21 @@ def build_empty_day(target_date: date) -> dict:
         "lessons": [],
     }
 
+async def get_welcome_message() -> str:
+    hour = datetime.now().hour
+
+    if 0 <= hour < 6:
+        period = "night"
+    elif 6 <= hour < 8:
+        period = "early_morning"
+    elif 8 <= hour < 12:
+        period = "morning"
+    elif 12 <= hour < 18:
+        period = "day"
+    else:
+        period = "evening"
+
+    return random.choice(WELCOME_MESSAGES[period])
 
 async def build_main_menu_buttons(
         telegram_id: int,
@@ -74,7 +110,7 @@ async def build_main_menu_buttons(
     else:
         buttons.append([
             InlineKeyboardButton(
-                text="🔔 Автооповещение: ВЫКЛ",
+                text="🔕 Автооповещение: ВЫКЛ",
                 callback_data="notification_settings:open",
             )
         ])
@@ -125,6 +161,23 @@ async def build_main_menu_buttons(
         inline_keyboard=buttons
     )
 
+async def build_main_menu_text(telegram_id: int) -> str:
+    user = await get_user(telegram_id)
+
+    if user is None:
+        raise ValueError("Пользователь не найден")
+
+    message = (
+        "<b>📚 Расписание УлГТУ</b>\n"
+        f"<i>{await get_welcome_message()}</i>\n\n"
+        f"Группа: {user['group_name']}"
+    )
+
+    if user["subgroup"] not in ("", None):
+        message += f" • {user['subgroup']} подгруппа"
+
+    return message
+
 
 async def show_main_menu(
         message: Message,
@@ -136,18 +189,20 @@ async def show_main_menu(
     await state.clear()
     await state.set_state(MainMenu.main_menu)
 
-    message_text = random.choice(WELCOME_MESSAGES)
+    message_text = await build_main_menu_text(message.chat.id)
 
     if edit_previous_message:
         await safe_edit_text(
             message,
             message_text,
-            await build_main_menu_buttons(message.chat.id),
+            reply_markup = await build_main_menu_buttons(message.chat.id),
+            parse_mode="HTML"
         )
     else:
         await message.answer(
             message_text,
             reply_markup=await build_main_menu_buttons(message.chat.id),
+            parse_mode="HTML"
         )
 
 
@@ -635,7 +690,7 @@ async def build_notification_settings_button(user) -> InlineKeyboardMarkup:
         if enabled:
             buttons.append([
                 InlineKeyboardButton(
-                    text="Включено",
+                    text="🔔Включено",
                     callback_data="notification_settings:toggle",
                     style="primary"
                 )
@@ -643,7 +698,7 @@ async def build_notification_settings_button(user) -> InlineKeyboardMarkup:
         else:
             buttons.append([
                 InlineKeyboardButton(
-                    text="Выключено",
+                    text="🔕Выключено",
                     callback_data="notification_settings:toggle",
                     style="danger"
                 )
@@ -706,15 +761,18 @@ async def render_notification_settings_menu(message: Message, state: FSMContext,
 
     await state.set_state(NotificationSettings.notification_setting)
 
+    message_text = "Каждый день в указанное время бот присылает расписание на завтра.\n\n"
+
     if user['notification_time'] is None or user['notification_time'] == "":
-        message_text = "Настройте время"
+        message_text += "Укажите время"
     else:
-        message_text = ("Время оповещения:\n"
+        message_text += ("<b>Время отправки:</b>\n"
                         f"🕒{user['notification_time']}")
     await safe_edit_text(
         message,
         message_text,
-        reply_markup=await build_notification_settings_button(user)
+        reply_markup=await build_notification_settings_button(user),
+        parse_mode="HTML"
     )
 
 

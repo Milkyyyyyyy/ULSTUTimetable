@@ -171,7 +171,7 @@ async def render_settings_menu(callback: CallbackQuery, state: FSMContext, data:
 	await safe_edit_text(
 		callback.message,
 		"Выберите нужную опцию.",
-		await get_settings_keyboard(data.has_changes),
+		reply_markup = await get_settings_keyboard(data.has_changes),
 	)
 
 
@@ -222,7 +222,7 @@ async def login_button_handler(callback: CallbackQuery, state: FSMContext):
 	log("settings", "Изменение логина", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_login)
 	await callback.answer()
-	await safe_edit_text(callback.message, "Введите новый логин:", back_to_settings_keyboard)
+	await safe_edit_text(callback.message, "Введите новый логин:", reply_markup=back_to_settings_keyboard)
 
 
 @router.message(Settings.waiting_for_login)
@@ -251,7 +251,7 @@ async def password_button_handler(callback: CallbackQuery, state: FSMContext):
 	log("settings", "Изменение пароля", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_password)
 	await callback.answer()
-	await safe_edit_text(callback.message, "Введите новый пароль:", back_to_settings_keyboard)
+	await safe_edit_text(callback.message, "Введите новый пароль:", reply_markup=back_to_settings_keyboard)
 
 
 @router.message(Settings.waiting_for_password)
@@ -299,7 +299,7 @@ async def schedule_part_button_handler(callback: CallbackQuery, state: FSMContex
 	log("settings", "Изменение факультета", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_facult)
 	await callback.answer()
-	await safe_edit_text(callback.message, "Выберите нужный факультет", schedule_parts_keyboard)
+	await safe_edit_text(callback.message, "Выберите нужный факультет", reply_markup=schedule_parts_keyboard)
 
 
 @router.callback_query(Settings.waiting_for_facult, F.data.startswith("schedule_part:"))
@@ -326,7 +326,7 @@ async def group_button_handler(callback: CallbackQuery, state: FSMContext):
 	log("settings", "Изменение группы", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_group)
 	await callback.answer()
-	await safe_edit_text(callback.message, "Введите новую группу:", back_to_settings_keyboard)
+	await safe_edit_text(callback.message, "Введите новую группу:", reply_markup=back_to_settings_keyboard)
 
 
 @router.message(Settings.waiting_for_group)
@@ -371,7 +371,7 @@ async def subgroup_button_handler(callback: CallbackQuery, state: FSMContext):
 	log("settings", "Изменение подгруппы", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_subgroup)
 	await callback.answer()
-	await safe_edit_text(callback.message, "Выберите подгруппу:", subgroup_keyboard)
+	await safe_edit_text(callback.message, "Выберите подгруппу:", reply_markup=subgroup_keyboard)
 
 
 @router.callback_query(Settings.waiting_for_subgroup, F.data.startswith("subgroup:"))

@@ -37,9 +37,9 @@ async def delete_after(
 	asyncio.create_task(delete())
 
 
-async def safe_edit_text(message: Message, text: str, reply_markup: InlineKeyboardMarkup = None) -> None:
+async def safe_edit_text(message: Message, text: str, parse_mode: str|None = None, reply_markup: InlineKeyboardMarkup = None) -> None:
 	try:
-		await message.edit_text(text, reply_markup=reply_markup)
+		await message.edit_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
 	except TelegramBadRequest as e:
 		if "message is not modified" not in str(e):
 			raise

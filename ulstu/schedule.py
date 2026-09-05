@@ -4,6 +4,7 @@ import re
 from html import escape
 from datetime import datetime, date, timedelta
 from pathlib import Path
+import random
 
 from aiogram.types import Message
 from bs4 import BeautifulSoup
@@ -506,7 +507,10 @@ async def format_day_schedule(
         message += lesson_text
 
     if visible_lessons_count == 0:
-        message += "<i>Пар нет.</i>"
+        if random.randint(1, 100) > 95:
+            message += "<i>Отдыхай. Пар нет.</i>"
+        else:
+            message += "<i>Пар нет.</i>"
 
     return message
 
