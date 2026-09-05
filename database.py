@@ -107,7 +107,6 @@ async def update_user(
 		session_cookies: str | None = None,
 		notification_enabled: bool | None = None,
 ):
-	"""Изменяет указанные данные пользователя."""
 	fields = []
 	values = []
 	changed = []
@@ -176,7 +175,6 @@ async def update_user(
 
 
 async def delete_user(telegram_id: int):
-	"""Удаляет пользователя."""
 	async with aiosqlite.connect(DB_PATH) as db:
 		await db.execute(
 			"""

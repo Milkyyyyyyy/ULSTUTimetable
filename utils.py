@@ -37,7 +37,6 @@ async def delete_after(
 	asyncio.create_task(delete())
 
 
-# --- safe wrappers around Telegram / DB calls (#3) ------------------------
 async def safe_edit_text(message: Message, text: str, reply_markup: InlineKeyboardMarkup = None) -> None:
 	try:
 		await message.edit_text(text, reply_markup=reply_markup)

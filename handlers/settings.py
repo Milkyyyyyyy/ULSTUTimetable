@@ -21,11 +21,11 @@ from utils import safe_edit_text, safe_bot_edit_text
 router = Router()
 logger = logging.getLogger(__name__)
 
-# --- #7: работаем только в приватных чатах -------------------------------
+# Обрабатываем только личные чаты
 router.message.filter(F.chat.type == "private")
 router.callback_query.filter(F.message.chat.type == "private")
 
-# --- #6: лок на пользователя, чтобы не было гонок при двойных кликах -----
+# Лок на пользователя защищает от гонок при двойных кликах
 _user_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
@@ -53,7 +53,6 @@ async def safe_update_user(**kwargs) -> bool:
 		return False
 
 
-# --- #8: типизированные данные состояния вместо голого dict --------------
 @dataclass
 class SettingsData:
 	ulstu_login: str = ""
@@ -82,7 +81,6 @@ async def save_settings_data(state: FSMContext, data: SettingsData) -> None:
 	await state.update_data(**data.to_dict())
 
 
-# --- validation helpers (#4) ----------------------------------------------
 MAX_LOGIN_LENGTH = 64
 MAX_PASSWORD_LENGTH = 128
 
@@ -139,11 +137,8 @@ async def get_settings_keyboard(has_changes: bool) -> InlineKeyboardMarkup:
 	return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-# --- Общая логика рендеринга меню настроек --------------------------------
-# Вынесена отдельно, чтобы её можно было звать как ИЗ-ПОД лока (после
-# изменения конкретной настройки), так и напрямую по кнопке "Назад к
-# настройкам", не рискуя повторным (реентерантным) захватом user_lock,
-# который приводит к дедлоку.
+# Рендер меню вынесен отдельно, чтобы его можно было вызывать как под локом,
+# так и без него — иначе повторный захват user_lock даст дедлок
 
 async def _load_or_get_settings_data(callback: CallbackQuery, state: FSMContext, first_open: bool) -> Optional[
 	SettingsData]:
@@ -210,7 +205,7 @@ async def back_to_settings(callback: CallbackQuery, state: FSMContext):
 
 
 async def render_settings_after_message(bot, state: FSMContext, data: SettingsData) -> None:
-	"""Обновляет исходное сообщение настроек после ввода текста (#2)."""
+	"""Обновляет исходное сообщение настроек после ввода текста."""
 	if data.settings_chat_id is None or data.settings_message_id is None:
 		return
 	await safe_bot_edit_text(
@@ -396,11 +391,11 @@ async def subgroup_handler(callback: CallbackQuery, state: FSMContext):
 		)
 
 		await state.set_state(Settings.settings)
-		# Аналогично schedule_part_handler — избегаем повторного лока.
+		# Аналогично schedule_part_handler — избегаем повторного взятия лока
 		await render_settings_menu(callback, state, data)
 
 
-# --- СОХРАНЕНИЕ/ОТМЕНА -----------------------------------------------------
+# Сохранение и отмена изменений
 
 @router.callback_query(Settings.settings, F.data == "settings:apply")
 async def save_changes(callback: CallbackQuery, state: FSMContext):

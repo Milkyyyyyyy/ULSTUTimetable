@@ -62,10 +62,6 @@ async def build_main_menu_buttons(
 
     buttons = []
 
-    # --------------------------------------------------
-    # Автоматическое оповещение
-    # --------------------------------------------------
-
     if user["notification_enabled"] == 1:
         buttons.append([
             InlineKeyboardButton(
@@ -83,10 +79,6 @@ async def build_main_menu_buttons(
             )
         ])
 
-    # --------------------------------------------------
-    # Расписание на сегодня / завтра
-    # --------------------------------------------------
-
     buttons.append([
         InlineKeyboardButton(
             text="🗓 Сегодня",
@@ -99,10 +91,6 @@ async def build_main_menu_buttons(
             style="success",
         ),
     ])
-
-    # --------------------------------------------------
-    # Расписание на неделю
-    # --------------------------------------------------
 
     buttons.append([
         InlineKeyboardButton(
@@ -117,10 +105,6 @@ async def build_main_menu_buttons(
         ),
     ])
 
-    # --------------------------------------------------
-    # Расписание на конкретную дату
-    # --------------------------------------------------
-
     buttons.append([
         InlineKeyboardButton(
             text="📅 Расписание на дату",
@@ -128,10 +112,6 @@ async def build_main_menu_buttons(
             style="success",
         ),
     ])
-
-    # --------------------------------------------------
-    # Настройки
-    # --------------------------------------------------
 
     buttons.append([
         InlineKeyboardButton(
@@ -177,18 +157,12 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     await show_main_menu(callback.message, state, edit_previous_message=True)
 
 
-# ---------------------------------------------------------------------------
 # Клавиатура выбора недели и дня
-# ---------------------------------------------------------------------------
 
 def build_schedule_keyboard(
         schedule: list[dict],
         week_index: int,
 ) -> InlineKeyboardMarkup:
-    """
-    Создаёт клавиатуру для выбора дня.
-    """
-
     builder = InlineKeyboardBuilder()
 
     # Защита от некорректного индекса
@@ -204,9 +178,7 @@ def build_schedule_keyboard(
     week = schedule[week_index]
     days = week.get("days", [])
 
-    # --------------------------------------------------
     # Кнопки дней
-    # --------------------------------------------------
 
     for row_index in range(3):
         row_buttons = []
@@ -225,7 +197,7 @@ def build_schedule_keyboard(
         if row_buttons:
             builder.row(*row_buttons)
 
-    # Воскресенье отдельно
+    # Воскресенье выносим в отдельную строку
     if len(days) > 6:
         day = days[6]
 
@@ -236,9 +208,7 @@ def build_schedule_keyboard(
             )
         )
 
-    # --------------------------------------------------
     # Навигация по неделям
-    # --------------------------------------------------
 
     navigation_buttons = []
 
@@ -268,10 +238,6 @@ def build_schedule_keyboard(
 
     builder.row(*navigation_buttons)
 
-    # --------------------------------------------------
-    # Назад
-    # --------------------------------------------------
-
     builder.row(
         InlineKeyboardButton(
             text="◀ Назад",
@@ -283,9 +249,7 @@ def build_schedule_keyboard(
     return builder.as_markup()
 
 
-# ---------------------------------------------------------------------------
-# Открытие расписания / Сегодня / Завтра
-# ---------------------------------------------------------------------------
+# Открытие расписания: сегодня / завтра
 
 @router.callback_query(
     MainMenu.main_menu,
@@ -301,10 +265,6 @@ async def schedule_button_handler(
     user_id = callback.from_user.id
     log("main_menu", f"Запрос расписания: {action}", user_id)
 
-    # --------------------------------------------------
-    # Получаем расписание только здесь
-    # --------------------------------------------------
-
     try:
         schedule = await get_schedule(user_id)
     except Exception as error:
@@ -318,10 +278,6 @@ async def schedule_button_handler(
         )
         await delete_after(sent_message, 8)
         return
-
-    # --------------------------------------------------
-    # Сегодня
-    # --------------------------------------------------
 
     if action == "today":
         today = date.today()
@@ -337,10 +293,6 @@ async def schedule_button_handler(
         )
 
         return
-
-    # --------------------------------------------------
-    # Завтра
-    # --------------------------------------------------
 
     if action == "tomorrow":
         tomorrow = date.today() + timedelta(days=1)
@@ -358,10 +310,6 @@ async def schedule_button_handler(
 
         return
 
-    # --------------------------------------------------
-    # Выбор дня
-    # --------------------------------------------------
-
     if action == "select":
 
         if not schedule:
@@ -373,9 +321,7 @@ async def schedule_button_handler(
             )
             return
 
-        # Сохраняем весь schedule в FSM.
-        # Благодаря этому при переключении недель
-        # заново получать расписание не понадобится.
+        # Сохраняем schedule в FSM, чтобы при переключении недель не запрашивать его заново
         await state.update_data(
             schedule=schedule,
             week_index=0,
@@ -398,9 +344,7 @@ async def schedule_button_handler(
         )
 
 
-# ---------------------------------------------------------------------------
 # Переключение недель
-# ---------------------------------------------------------------------------
 
 @router.callback_query(
     F.data.startswith("schedule_select_week:")
@@ -411,7 +355,6 @@ async def schedule_week_handler(
 ):
     await callback.answer()
 
-    # Получаем сохранённый schedule
     data = await state.get_data()
     schedule = data.get("schedule")
 
@@ -426,7 +369,6 @@ async def schedule_week_handler(
         )
         return
 
-    # Получаем индекс недели
     week_index = int(
         callback.data.split(":", 1)[1]
     )
@@ -454,9 +396,7 @@ async def schedule_week_handler(
     )
 
 
-# ---------------------------------------------------------------------------
-# Нажатие на номер текущей недели
-# ---------------------------------------------------------------------------
+# Кнопка номера текущей недели
 
 @router.callback_query(
     F.data.startswith("schedule_week_current:")
@@ -465,18 +405,13 @@ async def schedule_week_current_handler(
         callback: CallbackQuery,
 ):
     """
-    Центральная кнопка 'Неделя N'.
-
-    Ничего не делает — она просто показывает,
-    на какой неделе сейчас находится пользователь.
+    Кнопка «Неделя N» ничего не делает —
+    она просто показывает текущую неделю.
     """
-
     await callback.answer()
 
 
-# ---------------------------------------------------------------------------
 # Выбор конкретного дня
-# ---------------------------------------------------------------------------
 
 @router.callback_query(
     F.data.startswith("schedule_day:")
@@ -531,16 +466,6 @@ async def schedule_day_handler(
         callback.message,
         day_schedule,
     )
-
-
-# ---------------------------------------------------------------------------
-# Отправка расписания
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
-# Форматирование расписания
-# ---------------------------------------------------------------------------
 
 
 def get_week_index_for_date(
@@ -601,17 +526,9 @@ async def schedule_week_image_handler(
 ):
     await callback.answer()
 
-    # --------------------------------------------------
-    # Узнаём, какую неделю запросил пользователь
-    # --------------------------------------------------
-
     action = callback.data.split(":", 1)[1]
     user_id = callback.from_user.id
     log("main_menu", f"Запрос картинки недели: {action}", user_id)
-
-    # --------------------------------------------------
-    # Получаем полный schedule
-    # --------------------------------------------------
 
     try:
         schedule = await get_schedule(user_id)
@@ -635,10 +552,7 @@ async def schedule_week_image_handler(
         )
         return
 
-    # --------------------------------------------------
     # Находим текущую неделю
-    # --------------------------------------------------
-
     current_week_index = get_week_index_for_date(
         schedule,
         date.today(),
@@ -651,20 +565,14 @@ async def schedule_week_image_handler(
         )
         return
 
-    # --------------------------------------------------
     # Определяем нужную неделю
-    # --------------------------------------------------
-
     if action == "this":
         week_index = current_week_index
 
     else:
         week_index = current_week_index + 1
 
-    # --------------------------------------------------
-    # Проверяем, существует ли следующая неделя
-    # --------------------------------------------------
-
+    # Проверяем, существует ли запрошенная неделя
     if week_index >= len(schedule):
 
         if action == "next":
@@ -679,10 +587,7 @@ async def schedule_week_image_handler(
     start_date = date_range[0] if len(date_range) > 0 else ""
     end_date = date_range[1] if len(date_range) > 1 else ""
 
-    # --------------------------------------------------
     # Получаем подгруппу пользователя
-    # --------------------------------------------------
-
     user = await get_user(
         callback.from_user.id
     )
@@ -691,10 +596,6 @@ async def schedule_week_image_handler(
 
     if user is not None:
         user_subgroup = user["subgroup"]
-
-    # --------------------------------------------------
-    # Генерируем изображение
-    # --------------------------------------------------
 
     image = generate_week_schedule_image(
         week,
@@ -707,18 +608,10 @@ async def schedule_week_image_handler(
         filename=f"schedule_week_{week['week']}.png",
     )
 
-    # --------------------------------------------------
-    # Подпись
-    # --------------------------------------------------
-
     caption = (
         f"📅 <b>Расписание на неделю {week['week']}</b>\n"
         f"{start_date} — {end_date}"
     )
-
-    # --------------------------------------------------
-    # Отправляем
-    # --------------------------------------------------
 
     log(
         "main_menu",

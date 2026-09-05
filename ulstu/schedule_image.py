@@ -4,15 +4,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 
-# ---------------------------------------------------------------------------
 # Шрифты
-# ---------------------------------------------------------------------------
 
 def get_font(size: int, bold: bool = False):
-	"""
-	Ищет шрифт сначала в Windows, затем в Linux.
-	"""
-
+	"""Ищет шрифт сначала в Windows, затем в Linux."""
 	if bold:
 		candidates = [
 			"C:/Windows/Fonts/arialbd.ttf",
@@ -43,9 +38,7 @@ FONT_TEACHER = get_font(17)
 FONT_ROOM = get_font(17)
 
 
-# ---------------------------------------------------------------------------
 # Перенос текста
-# ---------------------------------------------------------------------------
 
 def wrap_text(
 		draw: ImageDraw.ImageDraw,
@@ -86,9 +79,7 @@ def wrap_text(
 	return lines
 
 
-# ---------------------------------------------------------------------------
 # Фильтр подгруппы
-# ---------------------------------------------------------------------------
 
 def filter_lessons(
 		lesson_items: list[dict],
@@ -103,7 +94,7 @@ def filter_lessons(
 		if item["subgroup"] is None:
 			result.append(item)
 
-		# Наша подгруппа
+		# Занятие нашей подгруппы
 		elif (
 				user_subgroup is None
 				or item["subgroup"] == user_subgroup
@@ -113,9 +104,7 @@ def filter_lessons(
 	return result
 
 
-# ---------------------------------------------------------------------------
 # Генерация расписания на неделю
-# ---------------------------------------------------------------------------
 
 def generate_week_schedule_image(
        week: dict,
@@ -152,9 +141,7 @@ def generate_week_schedule_image(
 
 		return result
 
-	# ------------------------------------------------------------------
 	# Все номера пар
-	# ------------------------------------------------------------------
 
 	lesson_numbers = set()
 
@@ -166,17 +153,13 @@ def generate_week_schedule_image(
 
 	lesson_numbers = sorted(lesson_numbers)
 
-	# ------------------------------------------------------------------
-	# Размеры колонок
-	# ------------------------------------------------------------------
-
 	day_column_width = 150
 	lesson_column_width = 270
 
 	title_height = 65
 	header_height = 75
 
-	# Временно создаём canvas только для измерения текста.
+	# Временно создаём canvas только для измерения текста
 	measure_image = Image.new(
 		"RGB",
 		(1, 1),
@@ -186,10 +169,6 @@ def generate_week_schedule_image(
 	measure_draw = ImageDraw.Draw(
 		measure_image
 	)
-
-	# ------------------------------------------------------------------
-	# Вычисляем высоту каждой строки
-	# ------------------------------------------------------------------
 
 	row_heights = []
 
@@ -213,9 +192,7 @@ def generate_week_schedule_image(
 
 		row_heights.append(row_height)
 
-	# ------------------------------------------------------------------
 	# Размер изображения
-	# ------------------------------------------------------------------
 
 	table_width = (
 			day_column_width
@@ -240,10 +217,6 @@ def generate_week_schedule_image(
 	)
 
 	draw = ImageDraw.Draw(image)
-
-	# ------------------------------------------------------------------
-	# Заголовок
-	# ------------------------------------------------------------------
 
 	week_number = week["week"]
 
@@ -282,10 +255,6 @@ def generate_week_schedule_image(
 
 	table_top = title_height
 
-	# ------------------------------------------------------------------
-	# Заголовок таблицы
-	# ------------------------------------------------------------------
-
 	draw.rectangle(
 		[
 			0,
@@ -316,10 +285,6 @@ def generate_week_schedule_image(
 		fill="black",
 		font=FONT_TYPE,
 	)
-
-	# ------------------------------------------------------------------
-	# Заголовки пар
-	# ------------------------------------------------------------------
 
 	for lesson_index, lesson_number in enumerate(
 			lesson_numbers
@@ -377,9 +342,7 @@ def generate_week_schedule_image(
 			font=FONT_TYPE,
 		)
 
-	# ------------------------------------------------------------------
 	# Строки дней
-	# ------------------------------------------------------------------
 
 	current_y = (
 			table_top
@@ -393,10 +356,6 @@ def generate_week_schedule_image(
 				row_top
 				+ row_heights[day_index]
 		)
-
-		# --------------------------------------------------------------
-		# День
-		# --------------------------------------------------------------
 
 		draw.rectangle(
 			[
@@ -434,9 +393,7 @@ def generate_week_schedule_image(
 			font=FONT_HEADER,
 		)
 
-		# --------------------------------------------------------------
 		# Пары
-		# --------------------------------------------------------------
 
 		for lesson_index, lesson_number in enumerate(
 				lesson_numbers
@@ -464,10 +421,7 @@ def generate_week_schedule_image(
 				width=2,
 			)
 
-			# ----------------------------------------------------------
-			# Ищем пару
-			# ----------------------------------------------------------
-
+			# Ищем пару с нужным номером
 			current_lesson = None
 
 			for lesson in day.get("lessons", []):
@@ -486,10 +440,6 @@ def generate_week_schedule_image(
 
 			if not visible_lessons:
 				continue
-
-			# ----------------------------------------------------------
-			# Вывод
-			# ----------------------------------------------------------
 
 			y = row_top + 10
 
@@ -596,10 +546,6 @@ def generate_week_schedule_image(
 
 		current_y = row_bottom
 
-	# ------------------------------------------------------------------
-	# Сохраняем
-	# ------------------------------------------------------------------
-
 	result = BytesIO()
 
 	image.save(
@@ -618,10 +564,7 @@ def calculate_lesson_height(
 		max_width: int,
 		user_subgroup: int | None,
 ) -> int:
-	"""
-	Вычисляет, сколько места нужно ячейке с одной парой.
-	"""
-
+	"""Вычисляет, сколько места нужно ячейке с одной парой."""
 	if lesson is None:
 		return 0
 
@@ -637,7 +580,6 @@ def calculate_lesson_height(
 
 	for index, item in enumerate(visible_lessons):
 
-		# Предмет
 		subject_lines = wrap_text(
 			draw,
 			item["subject"],
@@ -647,13 +589,11 @@ def calculate_lesson_height(
 
 		height += len(subject_lines) * 23
 
-		# Тип
 		height += 22
 
 		if item["subgroup"] is not None:
 			height += 22
 
-		# Преподаватель
 		teacher_lines = wrap_text(
 			draw,
 			item["teacher"],
@@ -663,10 +603,8 @@ def calculate_lesson_height(
 
 		height += len(teacher_lines) * 22
 
-		# Аудитория
 		height += 23
 
-		# Разделитель
 		if index < len(visible_lessons) - 1:
 			height += 15
 

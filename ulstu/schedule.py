@@ -42,7 +42,7 @@ def parse_schedule(html: str) -> list[dict]:
     result = []
 
     for table in tables:
-        # Ищем заголовок недели перед таблицей.
+        # Ищем заголовок недели перед таблицей
         previous_text = table.find_previous(
             string=re.compile(r"Неделя:")
         )
@@ -80,7 +80,7 @@ def parse_schedule(html: str) -> list[dict]:
         if len(rows) < 3:
             continue
 
-        # Вторая строка таблицы содержит время.
+        # Вторая строка таблицы содержит время
         time_cells = rows[1].find_all("td")
 
         lesson_times = []
@@ -92,7 +92,7 @@ def parse_schedule(html: str) -> list[dict]:
 
         days = []
 
-        # Остальные строки — дни недели.
+        # Остальные строки — дни недели
         for row in rows[2:]:
             cells = row.find_all("td")
 
@@ -164,7 +164,7 @@ def parse_lesson_text(text: str) -> list[dict]:
 
     lessons = []
 
-    # Ищем начало каждого отдельного занятия.
+    # Ищем начало каждого отдельного занятия
     lesson_starts = [
         i
         for i, line in enumerate(lines)
@@ -182,12 +182,7 @@ def parse_lesson_text(text: str) -> list[dict]:
 
         lesson_type = lesson_lines[0]
 
-        # Минимально ожидаем:
-        # тип
-        # предмет
-        # [подгруппа]
-        # преподаватель
-        # аудитория
+        # Минимально ожидаем: тип, предмет, подгруппа, преподаватель, аудитория
         if len(lesson_lines) < 4:
             continue
 
@@ -205,8 +200,7 @@ def parse_lesson_text(text: str) -> list[dict]:
             subgroup = int(subgroup_match.group(1))
             current_index += 1
 
-        # Последние две строки предполагаем
-        # преподавателем и аудиторией.
+        # Последние две строки — преподаватель и аудитория
         if len(lesson_lines) - current_index < 2:
             continue
 
@@ -245,7 +239,7 @@ async def get_schedule(telegram_id: int) -> list[dict]:
         telegram_id,
     )
 
-    # Сначала проверяем локальный кэш.
+    # Сначала проверяем локальный кэш
     cached_data = load_schedule_cache(cache_path)
 
     if cached_data is not None:
@@ -256,7 +250,7 @@ async def get_schedule(telegram_id: int) -> list[dict]:
         )
         return cached_data["schedule"]
 
-    # Только теперь идём в УлГТУ.
+    # Только теперь идём в УлГТУ
     log(
         "ulstu.schedule",
         "Кэш отсутствует или устарел — обновляем",
@@ -284,11 +278,7 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 
 
 def format_schedule_error(error: BaseException) -> str:
-    """
-    Превращает ошибку получения расписания
-    в понятное сообщение с подсказкой.
-    """
-
+    """Превращает ошибку в понятное сообщение с подсказкой."""
     message = str(error)
 
     if (
@@ -438,19 +428,11 @@ async def format_day_schedule(
         day_schedule: dict,
         telegram_id: int | None = None,
 ) -> str:
+    """Формирует сообщение с расписанием на день.
+
+    Если telegram_id передан — занятия фильтруются по подгруппе
+    пользователя, иначе показываются все.
     """
-    Формирует готовое сообщение с расписанием на день.
-
-    Если telegram_id передан:
-        применяется фильтр по подгруппе пользователя.
-
-    Если telegram_id не передан:
-        показываются все занятия.
-    """
-
-    # --------------------------------------------------
-    # Получаем подгруппу пользователя
-    # --------------------------------------------------
 
     user_subgroup = None
 
@@ -460,19 +442,11 @@ async def format_day_schedule(
         if user is not None:
             user_subgroup = user["subgroup"]
 
-    # --------------------------------------------------
-    # Заголовок
-    # --------------------------------------------------
-
     schedule_date = escape_html(day_schedule["date"])
 
     message = (
         f"📅 <b>Расписание на {schedule_date}</b>\n\n"
     )
-
-    # --------------------------------------------------
-    # Обрабатываем пары
-    # --------------------------------------------------
 
     visible_lessons_count = 0
 
@@ -493,8 +467,7 @@ async def format_day_schedule(
             ):
                 visible_lessons.append(item)
 
-        # Если после фильтрации ничего не осталось —
-        # не показываем эту пару.
+        # Если пара полностью отфильтрована — не показываем её
         if not visible_lessons:
             continue
 
@@ -531,10 +504,6 @@ async def format_day_schedule(
         lesson_text += "</blockquote>\n"
 
         message += lesson_text
-
-    # --------------------------------------------------
-    # Если пар нет
-    # --------------------------------------------------
 
     if visible_lessons_count == 0:
         message += "<i>Пар нет.</i>"
@@ -639,10 +608,6 @@ async def get_available_groups(
 
     cache_path = get_groups_cache_path(schedule_part)
 
-    # ---------------------------------------------
-    # Проверяем кэш
-    # ---------------------------------------------
-
     cached_data = load_groups_cache(cache_path)
 
     if cached_data is not None:
@@ -655,10 +620,6 @@ async def get_available_groups(
         )
 
         return cached_data["groups"]
-
-    # ---------------------------------------------
-    # Кэша нет / он устарел
-    # ---------------------------------------------
 
     log(
         "ulstu.schedule",

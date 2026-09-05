@@ -40,7 +40,7 @@ async def notification_worker(bot: Bot):
 
         now = datetime.now().astimezone()
 
-        # Сколько осталось до следующей минуты
+        # Сколько осталось до начала следующей минуты
         delay = 60 - now.second - (now.microsecond+100) / 1_000_000
 
         await asyncio.sleep(delay)
@@ -67,7 +67,7 @@ async def send_tomorrow_schedule(bot: Bot, user: dict):
         tomorrow,
     )
 
-    # Если завтра нет в расписании — создаём пустой день
+    # Создаём пустой день, если на завтра занятий нет
     if tomorrow_schedule is None:
         tomorrow_schedule = {
             "day": tomorrow.strftime("%d.%m.%Y"),
