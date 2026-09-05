@@ -754,6 +754,17 @@ async def set_time_button_handler(
     await state.set_state(NotificationSettings.wait_for_time)
 
 
+
+async def get_last_sent_for_new_time(notification_time: str) -> str:
+    now = datetime.now().astimezone()
+    current_time = now.strftime("%H:%M")
+    current_date = now.strftime("%Y-%m-%d")
+
+    if notification_time > current_time:
+        return ""
+
+    return current_date
+
 @router.message(NotificationSettings.wait_for_time)
 async def time_handle(
         message: Message,
@@ -772,7 +783,8 @@ async def time_handle(
     log("main_menu", f"Установлено время оповещения: {time}", message.chat.id)
     await update_user(
         message.chat.id,
-        notification_time=normalize_time(time)
+        notification_time=normalize_time(time),
+        notification_last_sent=await get_last_sent_for_new_time(time)
     )
 
     data = await state.get_data()

@@ -23,7 +23,8 @@ async def init_db():
                     group_name TEXT,
                     subgroup INTEGER,
                     notification_time TEXT,
-                    notification_enabled INTEGER NOT NULL DEFAULT 0
+                    notification_enabled INTEGER NOT NULL DEFAULT 0,
+                    notification_last_sent TEXT
             )
         """)
 
@@ -106,6 +107,7 @@ async def update_user(
 		ulstu_password_encrypted: str | None = None,
 		session_cookies: str | None = None,
 		notification_enabled: bool | None = None,
+		notification_last_sent: str | None = None,
 ):
 	fields = []
 	values = []
@@ -135,6 +137,12 @@ async def update_user(
 		fields.append("notification_time = ?")
 		values.append(notification_time)
 		changed.append("notification_time")
+
+	if notification_last_sent is not None:
+		fields.append("notification_last_sent = ?")
+		values.append(notification_last_sent)
+		changed.append("notification_last_sent")
+
 	if notification_enabled is not None:
 		fields.append("notification_enabled = ?")
 		values.append(int(notification_enabled))
@@ -189,23 +197,27 @@ async def delete_user(telegram_id: int):
 	log("database", "Пользователь удалён", telegram_id)
 
 
-async def get_users_for_notification(current_time: str):
-	async with aiosqlite.connect(DB_PATH) as db:
-		db.row_factory = aiosqlite.Row
+async def get_users_for_notification(current_time: str, current_date: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
 
-		cursor = await db.execute(
-			"""
-			SELECT *
-			FROM users
-			WHERE notification_enabled = 1
-			  AND notification_time = ?
-			""",
-			(current_time,)
-		)
+        cursor = await db.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE notification_enabled = 1
+              AND notification_time IS NOT NULL
+              AND notification_time != ''
+              AND notification_time <= ?
+              AND (
+                  notification_last_sent IS NULL
+                  OR notification_last_sent != ?
+              )
+            """,
+            (current_time, current_date)
+        )
 
-		users = await cursor.fetchall()
-
-	return [dict(user) for user in users]
+        return await cursor.fetchall()
 
 
 async def get_registered_users():

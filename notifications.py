@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 from aiogram import Bot
 
 from console_log import log
-from database import get_users_for_notification
+from database import get_users_for_notification, update_user
 from ulstu.schedule import (
     get_schedule,
     get_schedule_for_date, format_day_schedule,
@@ -17,31 +17,40 @@ async def notification_worker(bot: Bot):
 
     while True:
         now = datetime.now().astimezone()
+
         current_time = now.strftime("%H:%M")
+        current_date = now.strftime("%Y-%m-%d")
 
-        users = await get_users_for_notification(current_time)
-
-        if users:
-            log(
-                "notifications",
-                f"На {current_time} найдено "
-                f"получателей: {len(users)}",
-            )
+        users = await get_users_for_notification(
+            current_time,
+            current_date,
+        )
 
         for user in users:
             try:
                 await send_tomorrow_schedule(bot, user)
-            except Exception as e:
+
+                await update_user(
+                    user["telegram_id"],
+                    notification_last_sent=current_date,
+                )
+
                 log(
                     "notifications",
-                    f"Ошибка отправки: {e}",
+                    f"Оповещение отправлено "
+                    f"(scheduled={user['notification_time']})",
                     user["telegram_id"],
                 )
 
-        now = datetime.now().astimezone()
+            except Exception as e:
+                log(
+                    "notifications",
+                    f"Ошибка отправки: "
+                    f"{type(e).__name__}: {e}",
+                    user["telegram_id"],
+                )
 
-        # Сколько осталось до начала следующей минуты
-        delay = 60 - now.second - (now.microsecond+100) / 1_000_000
+        delay = 60 - now.second - now.microsecond / 1_000_000
 
         await asyncio.sleep(delay)
 
