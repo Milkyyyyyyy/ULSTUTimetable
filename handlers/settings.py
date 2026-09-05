@@ -17,17 +17,9 @@ from states.states import MainMenu, Settings
 from ulstu.schedule import is_group_valid_advanced
 from utils import delete_after
 from utils import safe_edit_text, safe_bot_edit_text
-from validator.group import is_group_valid
 
 router = Router()
 logger = logging.getLogger(__name__)
-
-# --- #7: работаем только в приватных чатах -------------------------------
-router.message.filter(F.chat.type == "private")
-router.callback_query.filter(F.message.chat.type == "private")
-
-# --- #6: лок на пользователя, чтобы не было гонок при двойных кликах -----
-_user_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 # --- #7: работаем только в приватных чатах -------------------------------
 router.message.filter(F.chat.type == "private")
@@ -323,6 +315,7 @@ async def schedule_part_handler(callback: CallbackQuery, state: FSMContext):
 		data = await get_settings_data(state)
 		data.schedule_part = part
 		data.has_changes = True
+		data.group_name = ""
 		await save_settings_data(state, data)
 		log(
 			"settings",
@@ -413,8 +406,19 @@ async def subgroup_handler(callback: CallbackQuery, state: FSMContext):
 async def save_changes(callback: CallbackQuery, state: FSMContext):
 	async with user_lock(callback.from_user.id):
 		log("settings", "Применение изменений", callback.from_user.id)
-		sent_message = await callback.message.answer("Сохраняю изменения..")
 		data = await get_settings_data(state)
+
+		if not data.group_name or not await is_group_valid_advanced(
+				callback.from_user.id, data.group_name, override_schedule_part=data.schedule_part
+		):
+			await callback.answer(
+				"Группа не выбрана или не соответствует факультету. "
+				"Укажите группу заново.",
+				show_alert=True,
+			)
+			await group_button_handler(callback, state)
+			return
+
 
 		success = await safe_update_user(
 			telegram_id=callback.from_user.id,
@@ -433,14 +437,12 @@ async def save_changes(callback: CallbackQuery, state: FSMContext):
 				"Не удалось сохранить изменения",
 				callback.from_user.id,
 			)
-			await sent_message.edit_text(
-				"Не удалось сохранить изменения. Попробуйте ещё раз позже."
+			await callback.answer(
+				"Не удалось сохранить изменения.\nПопробуйте ещё раз позже."
 			)
-			await delete_after(sent_message, 8)
 			return
 
 		log("settings", "Изменения сохранены", callback.from_user.id)
-		await delete_after(sent_message, 3)
 		await show_main_menu(callback.message, state, True)
 
 

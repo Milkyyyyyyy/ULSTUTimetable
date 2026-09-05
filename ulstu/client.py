@@ -272,6 +272,12 @@ async def get_authenticated_session(
     if user is None:
         raise ValueError("Пользователь не найден")
 
+    log(
+        "ulstu.requests",
+        f"GET {schedule_url}",
+        telegram_id,
+    )
+
     login_data = user["ulstu_login"]
 
     password = decrypt_password(

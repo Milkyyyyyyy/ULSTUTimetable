@@ -737,12 +737,6 @@ async def schedule_week_image_handler(
 
 async def build_notification_settings_button(user) -> InlineKeyboardMarkup:
     buttons = []
-    buttons.append([
-        InlineKeyboardButton(
-            text="🕒Задать время оповещения",
-            callback_data="notification_settings:set_time"
-        )
-    ])
     if user['notification_time'] is not None and user['notification_time'] != "":
         enabled = user['notification_enabled']
         if enabled:
@@ -761,6 +755,12 @@ async def build_notification_settings_button(user) -> InlineKeyboardMarkup:
                     style="danger"
                 )
             ])
+    buttons.append([
+        InlineKeyboardButton(
+            text="🕒Задать время оповещения",
+            callback_data="notification_settings:set_time"
+        )
+    ])
     buttons.append([
         InlineKeyboardButton(
             text="◀Назад",
@@ -850,7 +850,7 @@ async def set_time_button_handler(
     await callback.answer()
 
     sent_message = await callback.message.answer(
-        "Введите время в формате чч:мм"
+        "Введите время в формате ЧЧ:ММ"
     )
 
     await state.update_data(

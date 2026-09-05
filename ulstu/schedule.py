@@ -16,7 +16,7 @@ from validator.group import normalize_group
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = BASE_DIR / 'cache'
-CACHE_TTL = timedelta(minutes=180)
+CACHE_TTL = timedelta(minutes=120)
 GROUPS_CACHE_TTL = timedelta(days=90)
 
 
