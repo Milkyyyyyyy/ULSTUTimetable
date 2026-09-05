@@ -103,7 +103,7 @@ async def password_handler(
     )
 
     password_plain = message.text
-    encrypted_password = encrypt_password(password_plain)
+    encrypted_password = await encrypt_password(password_plain)
 
     await message.delete()
 

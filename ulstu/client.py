@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from console_log import log
 from database import get_user, update_user
-from encryption.encryption import decrypt_password
+from encryption.encryption import decrypt_password, decrypt_data, encrypt_data
 from validator.group import normalize_group
 from ulstu.request_logger import log_request
 
@@ -43,7 +43,7 @@ SCHEDULE_URLS = {
 }
 
 
-def load_cookies(cookies_json: str | None) -> dict:
+async def load_cookies(cookies_json: str | None) -> dict:
     if not cookies_json:
         return {}
 
@@ -59,7 +59,7 @@ def load_cookies(cookies_json: str | None) -> dict:
         return {}
 
 
-def serialize_cookies(session: aiohttp.ClientSession) -> str:
+async def serialize_cookies(session: aiohttp.ClientSession) -> str:
     cookies = {
         cookie.key: cookie.value
         for cookie in session.cookie_jar
@@ -113,9 +113,9 @@ async def login(
     return success
 
 async def verify_ulstu_credentials(
-    login_data: str,
-    password: str,
-    telegram_id: int,
+        login_data: str,
+        password: str,
+        telegram_id: int,
 ) -> str:
     session = aiohttp.ClientSession(
         timeout=REQUEST_TIMEOUT,
@@ -134,7 +134,9 @@ async def verify_ulstu_credentials(
                 "Авторизация на УлГТУ не удалась"
             )
 
-        return serialize_cookies(session)
+        cookies_json = await serialize_cookies(session)
+
+        return await encrypt_data(cookies_json)
 
     finally:
         await session.close()
@@ -161,7 +163,7 @@ async def get_schedule_page(
     return True, await response.text()
 
 
-def parse_groups(
+async def parse_groups(
         html: str,
         base_url: str
 ) -> list[dict]:
@@ -221,7 +223,7 @@ async def get_schedule_groups(
     )
 
     try:
-        groups = parse_groups(
+        groups = await parse_groups(
             schedule_html,
             schedule_url,
         )
@@ -268,7 +270,7 @@ async def get_group_schedule(
     )
 
     try:
-        groups = parse_groups(
+        groups = await parse_groups(
             schedule_html ,
             schedule_url,
         )
@@ -326,13 +328,16 @@ async def get_authenticated_session(
 
     login_data = user["ulstu_login"]
 
-    password = decrypt_password(
+    password = await decrypt_password(
         user["ulstu_password_encrypted"]
     )
 
-    saved_cookies = load_cookies(
-        user["session_cookies"]
-    )
+    saved_cookies = {}
+
+    if user["session_cookies"]:
+        saved_cookies = await load_cookies(
+            await decrypt_data(user["session_cookies"])
+        )
 
     session = aiohttp.ClientSession(
         cookies=saved_cookies,
@@ -376,11 +381,12 @@ async def get_authenticated_session(
                 "Авторизация на УлГТУ не удалась"
             )
 
-        cookies_json = serialize_cookies(session)
+        cookies_json = await serialize_cookies(session)
+        encrypted_cookies= await encrypt_data(cookies_json)
 
         await update_user(
             telegram_id,
-            session_cookies=cookies_json,
+            session_cookies=encrypted_cookies,
         )
 
         schedule_is_available, schedule_html = (

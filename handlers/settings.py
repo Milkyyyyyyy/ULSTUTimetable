@@ -269,7 +269,7 @@ async def password_handler(message: Message, state: FSMContext):
 		return
 
 	async with user_lock(message.from_user.id):
-		password = encrypt_password(raw_password)
+		password = await encrypt_password(raw_password)
 
 		data = await get_settings_data(state)
 		data.ulstu_password_encrypted = password
