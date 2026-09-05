@@ -100,7 +100,32 @@ async def login(
 
     return success
 
+async def verify_ulstu_credentials(
+    login_data: str,
+    password: str,
+    telegram_id: int,
+) -> str:
+    session = aiohttp.ClientSession(
+        timeout=REQUEST_TIMEOUT,
+    )
 
+    try:
+        success = await login(
+            session,
+            login_data,
+            password,
+            telegram_id=telegram_id,
+        )
+
+        if not success:
+            raise RuntimeError(
+                "Авторизация на УлГТУ не удалась"
+            )
+
+        return serialize_cookies(session)
+
+    finally:
+        await session.close()
 async def get_schedule_page(
         session: aiohttp.ClientSession,
         schedule_url: str

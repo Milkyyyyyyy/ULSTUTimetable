@@ -49,48 +49,51 @@ async def get_user(telegram_id: int):
 
 
 async def create_user(
-		telegram_id: int,
-		ulstu_login: str,
-		ulstu_password_encrypted: str,
-		schedule_part: int,
-		group_name: str,
-		subgroup: int,
-		notification_time: str
+    telegram_id: int,
+    ulstu_login: str,
+    ulstu_password_encrypted: str,
+    session_cookies: str = "",
+    schedule_part: int | None = None,
+    group_name: str | None = None,
+    subgroup: int | None = None,
+    notification_time: str | None = None,
 ):
-	async with aiosqlite.connect(DB_PATH) as db:
-		await db.execute(
-			"""
-			INSERT INTO users (
-				telegram_id,
-				ulstu_login,
-				group_name,
-				subgroup,
-				schedule_part,
-				notification_time,
-				ulstu_password_encrypted
-			)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
-			""",
-			(
-				telegram_id,
-				ulstu_login,
-				group_name,
-				subgroup,
-				schedule_part,
-				notification_time,
-				ulstu_password_encrypted,
-			)
-		)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            INSERT INTO users (
+                telegram_id,
+                ulstu_login,
+                group_name,
+                subgroup,
+                schedule_part,
+                notification_time,
+                ulstu_password_encrypted,
+                session_cookies
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                telegram_id,
+                ulstu_login,
+                group_name,
+                subgroup,
+                schedule_part,
+                notification_time,
+                ulstu_password_encrypted,
+                session_cookies,
+            )
+        )
 
-		await db.commit()
+        await db.commit()
 
-	log(
-		"database",
-		f"Создан пользователь: login={ulstu_login}, "
-		f"group={group_name}, part={schedule_part}, "
-		f"subgroup={subgroup}",
-		telegram_id,
-	)
+    log(
+        "database",
+        f"Создан пользователь: login={ulstu_login}, "
+        f"group={group_name}, part={schedule_part}, "
+        f"subgroup={subgroup}",
+        telegram_id,
+    )
 
 
 async def update_user(
