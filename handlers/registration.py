@@ -13,7 +13,7 @@ from states.states import Registration
 from ulstu.client import verify_ulstu_credentials
 from ulstu.schedule import is_group_valid_advanced
 from utils import delete_after
-from validator.group import is_group_valid, normalize_group
+from validator.group import normalize_group
 
 router = Router()
 

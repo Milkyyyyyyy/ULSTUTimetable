@@ -8,6 +8,7 @@ from console_log import log
 from database import get_user, update_user
 from encryption.encryption import decrypt_password
 from validator.group import normalize_group
+from ulstu.request_logger import log_request
 
 LOGIN_URL = "https://lk.ulstu.ru/timetable/"
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(
@@ -74,11 +75,22 @@ async def login(
         telegram_id: int | None = None,
 ) -> bool:
     log("ulstu.client", f"Авторизация логином {login_data}", telegram_id)
+    log_request(
+        operation="login_page",
+        telegram_id=telegram_id,
+        url=LOGIN_URL,
+    )
 
     response = await session.get(LOGIN_URL)
     response.raise_for_status()
 
     login_url = str(response.url)
+
+    log_request(
+        operation="login",
+        telegram_id=telegram_id,
+        url=login_url,
+    )
 
     response = await session.post(
         login_url,
@@ -128,8 +140,16 @@ async def verify_ulstu_credentials(
         await session.close()
 async def get_schedule_page(
         session: aiohttp.ClientSession,
-        schedule_url: str
+        schedule_url: str,
+        telegram_id: int | None = None,
 ) -> tuple[bool, str]:
+
+    log_request(
+        operation="schedule_page",
+        telegram_id=telegram_id,
+        url=schedule_url,
+    )
+
     response = await session.get(schedule_url)
     response.raise_for_status()
 
@@ -266,6 +286,13 @@ async def get_group_schedule(
                 "не найдена в расписании"
             )
 
+        log_request(
+            operation="group_schedule",
+            telegram_id=telegram_id,
+            schedule_part=schedule_part,
+            url=group_url,
+        )
+
         response = await session.get(group_url)
         response.raise_for_status()
 
@@ -297,12 +324,6 @@ async def get_authenticated_session(
     if user is None:
         raise ValueError("Пользователь не найден")
 
-    log(
-        "ulstu.requests",
-        f"GET {schedule_url}",
-        telegram_id,
-    )
-
     login_data = user["ulstu_login"]
 
     password = decrypt_password(
@@ -328,6 +349,7 @@ async def get_authenticated_session(
             await get_schedule_page(
                 session,
                 schedule_url,
+                telegram_id=telegram_id
             )
         )
 
@@ -365,6 +387,7 @@ async def get_authenticated_session(
             await get_schedule_page(
                 session,
                 schedule_url,
+                telegram_id=telegram_id
             )
         )
 
