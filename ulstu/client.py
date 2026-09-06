@@ -242,6 +242,7 @@ async def get_schedule_groups(
 
 async def get_group_schedule(
     telegram_id: int,
+    groups: list[dict] | None = None,
 ) -> str:
 
     user = await get_user(telegram_id)
@@ -264,23 +265,48 @@ async def get_group_schedule(
         telegram_id,
     )
 
-    session, schedule_html  = await get_authenticated_session(
+    session, schedule_html = await get_authenticated_session(
         telegram_id,
         schedule_url,
     )
 
     try:
-        groups = await parse_groups(
-            schedule_html ,
-            schedule_url,
-        )
-
         group_url = None
 
-        for group in groups:
-            if normalize_group(group["group"]) == group_name:
-                group_url = group["url"]
-                break
+        # Сначала пытаемся найти группу в переданном списке
+        if groups is not None:
+            for group in groups:
+                if normalize_group(group["group"]) == group_name:
+                    group_url = group["url"]
+                    break
+
+            if group_url is not None:
+                log(
+                    "ulstu.client",
+                    f"Группа найдена в переданном списке: "
+                    f"{user['group_name']}",
+                    telegram_id,
+                )
+
+        # Если в переданном списке группа не найдена —
+        # используем старый способ поиска через страницу расписания
+        if group_url is None:
+            log(
+                "ulstu.client",
+                f"Группа не найдена в переданном списке. "
+                f"Используем резервный поиск.",
+                telegram_id,
+            )
+
+            parsed_groups = await parse_groups(
+                schedule_html,
+                schedule_url,
+            )
+
+            for group in parsed_groups:
+                if normalize_group(group["group"]) == group_name:
+                    group_url = group["url"]
+                    break
 
         if group_url is None:
             raise ValueError(

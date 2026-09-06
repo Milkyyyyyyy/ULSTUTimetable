@@ -258,7 +258,15 @@ async def get_schedule(telegram_id: int) -> list[dict]:
         telegram_id,
     )
 
-    html = await get_group_schedule(telegram_id)
+    groups = await get_available_groups(
+        telegram_id,
+        override_schedule_part=schedule_part,
+    )
+
+    html = await get_group_schedule(
+        telegram_id,
+        groups,
+    )
 
     schedule = parse_schedule(html)
 
@@ -637,6 +645,8 @@ async def get_available_groups(
         override_schedule_part=schedule_part,
     )
 
+    groups = normalize_groups(groups)
+
     save_groups_cache(
         cache_path,
         schedule_part,
@@ -669,3 +679,20 @@ async def is_group_valid_advanced(
         normalize_group(item["group"]) == group
         for item in groups
     )
+
+def normalize_groups(groups: list[dict]) -> list[dict]:
+    result = []
+
+    for item in groups:
+        for group_name in item["group"].split(","):
+            group_name = group_name.strip()
+
+            if not group_name:
+                continue
+
+            result.append({
+                "group": group_name,
+                "url": item["url"],
+            })
+
+    return result
