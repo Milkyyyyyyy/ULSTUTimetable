@@ -1,0 +1,382 @@
+{
+    "schedule_part": 4,
+    "updated_at": "2026-09-05T01:45:14.400044+04:00",
+    "groups": [
+        {
+            "group": "Бдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/10.html"
+        },
+        {
+            "group": "Бдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/20.html"
+        },
+        {
+            "group": "Бдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/30.html"
+        },
+        {
+            "group": "НГдоп-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/40.html"
+        },
+        {
+            "group": "Подготовка",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/50.html"
+        },
+        {
+            "group": "БДдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/11.html"
+        },
+        {
+            "group": "Бдоп-22, Бдп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/21.html"
+        },
+        {
+            "group": "Бдоп-32, Бдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/31.html"
+        },
+        {
+            "group": "НГдоп-42",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/41.html"
+        },
+        {
+            "group": "НГдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/12.html"
+        },
+        {
+            "group": "БДдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/22.html"
+        },
+        {
+            "group": "БДдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/32.html"
+        },
+        {
+            "group": "НГдоп-43, НГдп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/42.html"
+        },
+        {
+            "group": "НГдоп-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/13.html"
+        },
+        {
+            "group": "НГдоп-21, НГдп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/23.html"
+        },
+        {
+            "group": "БДдоп-32, БДдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/33.html"
+        },
+        {
+            "group": "Сдоп-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/43.html"
+        },
+        {
+            "group": "РУПдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/14.html"
+        },
+        {
+            "group": "НГдоп-22, НГдп-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/24.html"
+        },
+        {
+            "group": "РЭСдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/34.html"
+        },
+        {
+            "group": "Сдоп-42, Сдп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/44.html"
+        },
+        {
+            "group": "РУПдоп-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/15.html"
+        },
+        {
+            "group": "РУПдп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/25.html"
+        },
+        {
+            "group": "РЭСдоп-32",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/35.html"
+        },
+        {
+            "group": "ИСдоп-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/45.html"
+        },
+        {
+            "group": "РУПдоп-13",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/16.html"
+        },
+        {
+            "group": "РЭСдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/26.html"
+        },
+        {
+            "group": "РЭСдоп-33, РЭСдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/36.html"
+        },
+        {
+            "group": "ИСдоп-42",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/46.html"
+        },
+        {
+            "group": "РУПдоп-14",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/17.html"
+        },
+        {
+            "group": "РЭСдоп-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/27.html"
+        },
+        {
+            "group": "НГдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/37.html"
+        },
+        {
+            "group": "ИСдоп-43",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/47.html"
+        },
+        {
+            "group": "РУПдоп-15",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/18.html"
+        },
+        {
+            "group": "Сдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/28.html"
+        },
+        {
+            "group": "НГдоп-32, Нгдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/38.html"
+        },
+        {
+            "group": "ИСдоп-44",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/48.html"
+        },
+        {
+            "group": "РУПдоп-16",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/19.html"
+        },
+        {
+            "group": "Эдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/29.html"
+        },
+        {
+            "group": "Сдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/39.html"
+        },
+        {
+            "group": "ИСдоп-45",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/49.html"
+        },
+        {
+            "group": "РЭСдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/110.html"
+        },
+        {
+            "group": "Эдоп-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/210.html"
+        },
+        {
+            "group": "Сдоп-32, Сдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/310.html"
+        },
+        {
+            "group": "ИСдоп-46",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/410.html"
+        },
+        {
+            "group": "РЭСдоп-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/111.html"
+        },
+        {
+            "group": "Тдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/211.html"
+        },
+        {
+            "group": "Тдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/311.html"
+        },
+        {
+            "group": "ИСдоп-47",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/411.html"
+        },
+        {
+            "group": "Сдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/112.html"
+        },
+        {
+            "group": "Тдоп-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/212.html"
+        },
+        {
+            "group": "Тдоп-32, Тдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/312.html"
+        },
+        {
+            "group": "ИСдоп-48",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/412.html"
+        },
+        {
+            "group": "Тдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/113.html"
+        },
+        {
+            "group": "ТМСдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/213.html"
+        },
+        {
+            "group": "ТМСдоп-31, ТМСдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/313.html"
+        },
+        {
+            "group": "ИСдоп-49",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/413.html"
+        },
+        {
+            "group": "Тдоп-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/114.html"
+        },
+        {
+            "group": "ТМСдоп-22, ТМСдп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/214.html"
+        },
+        {
+            "group": "Вдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/314.html"
+        },
+        {
+            "group": "ИСдоп-410",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/414.html"
+        },
+        {
+            "group": "ТМСдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/115.html"
+        },
+        {
+            "group": "ТЭСдп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/215.html"
+        },
+        {
+            "group": "Вдоп-32",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/315.html"
+        },
+        {
+            "group": "Эдоп-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/415.html"
+        },
+        {
+            "group": "ТМСдоп-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/116.html"
+        },
+        {
+            "group": "Вдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/216.html"
+        },
+        {
+            "group": "Вдоп-33",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/316.html"
+        },
+        {
+            "group": "Эдоп-42, Эдп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/416.html"
+        },
+        {
+            "group": "ТЭСдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/117.html"
+        },
+        {
+            "group": "Вдоп-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/217.html"
+        },
+        {
+            "group": "Вдоп-34",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/317.html"
+        },
+        {
+            "group": "Вдп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/417.html"
+        },
+        {
+            "group": "ТЭСдоп-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/118.html"
+        },
+        {
+            "group": "Пдоп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/218.html"
+        },
+        {
+            "group": "Пдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/318.html"
+        },
+        {
+            "group": "Пдп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/418.html"
+        },
+        {
+            "group": "Эдоп-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/119.html"
+        },
+        {
+            "group": "Пдоп-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/219.html"
+        },
+        {
+            "group": "Пдоп-32",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/319.html"
+        },
+        {
+            "group": "Эдоп-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/120.html"
+        },
+        {
+            "group": "Пдоп-23",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/220.html"
+        },
+        {
+            "group": "Пдоп-33",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/320.html"
+        },
+        {
+            "group": "Пдоп-24",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/221.html"
+        },
+        {
+            "group": "Пдоп-34",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/321.html"
+        },
+        {
+            "group": "Пдоп-25",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/222.html"
+        },
+        {
+            "group": "Пдоп-35",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/322.html"
+        },
+        {
+            "group": "Пдоп-26",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/223.html"
+        },
+        {
+            "group": "Пдоп-36",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/323.html"
+        },
+        {
+            "group": "Пдоп-37",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/324.html"
+        },
+        {
+            "group": "Пдоп-38, Пдп-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/325.html"
+        },
+        {
+            "group": "Пдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/326.html"
+        },
+        {
+            "group": "Эдоп-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/327.html"
+        },
+        {
+            "group": "Эдоп-32, Эдп-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/328.html"
+        }
+    ]
+}

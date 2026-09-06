@@ -1,0 +1,23 @@
+
+2026-09-05T21:01:25.672182+04:00,848623786,schedule_page,,"https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/raspisan.html",,True
+2026-09-05T21:01:25.964745+04:00,848623786,group_schedule,2,"https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/216.html",,True
+2026-09-05T22:32:00.015170+04:00,974514847,schedule_page,,https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/raspisan.html,,True
+2026-09-05T22:32:00.566434+04:00,974514847,login_page,,https://lk.ulstu.ru/timetable/,,True
+2026-09-05T22:32:00.703490+04:00,974514847,login,,https://lk.ulstu.ru/?q=auth/login&nonce=93c176c74f96e0d0300c25c4bb65b7b5&scope=openid&redirect_uri=https://lk.ulstu.ru/timetable/oidc/redirect&response_type=code&client_id=77dfccdb56ed3ac2d67c5aec877787e62946b77a21f54a543491db4faa882283&state=b30d44f328eb6f0cff451ee08b16f098,,True
+2026-09-05T22:32:01.282930+04:00,974514847,schedule_page,,https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/raspisan.html,,True
+2026-09-05T22:32:01.657610+04:00,974514847,group_schedule,4,https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/45.html,,True
+2026-09-05T23:52:38.617110+04:00,848623786,schedule_page,,"https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/raspisan.html",,True
+2026-09-05T23:52:39.048039+04:00,848623786,login_page,,https://lk.ulstu.ru/timetable/,,True
+2026-09-05T23:52:39.172258+04:00,848623786,login,,https://lk.ulstu.ru/?q=auth/login&nonce=92649042938622fd8022e4c65e363452&scope=openid&redirect_uri=https://lk.ulstu.ru/timetable/oidc/redirect&response_type=code&client_id=77dfccdb56ed3ac2d67c5aec877787e62946b77a21f54a543491db4faa882283&state=c68e0cb965e55e1a232e1ad123f7c62c,,True
+2026-09-05T23:52:39.799066+04:00,848623786,schedule_page,,"https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/raspisan.html",,True
+2026-09-05T23:52:39.879111+04:00,848623786,group_schedule,2,"https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/216.html",,True
+2026-09-06T11:59:24.649318+04:00,848623786,schedule_page,,"https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/raspisan.html",,True
+2026-09-06T11:59:25.425786+04:00,848623786,login_page,,https://lk.ulstu.ru/timetable/,,True
+2026-09-06T11:59:25.753602+04:00,848623786,login,,https://lk.ulstu.ru/?q=auth/login&state=e9ae5568b0e6854fc76acff1552581c3&scope=openid&redirect_uri=https://lk.ulstu.ru/timetable/oidc/redirect&response_type=code&nonce=88be599edc3ffe117ad1ad0fd9e88694&client_id=77dfccdb56ed3ac2d67c5aec877787e62946b77a21f54a543491db4faa882283,,True
+2026-09-06T11:59:26.590472+04:00,848623786,schedule_page,,"https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/raspisan.html",,True
+2026-09-06T11:59:26.679950+04:00,848623786,group_schedule,2,"https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/216.html",,True
+2026-09-06T12:24:49.790391+04:00,974514847,schedule_page,,https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/raspisan.html,,True
+2026-09-06T12:24:50.198943+04:00,974514847,login_page,,https://lk.ulstu.ru/timetable/,,True
+2026-09-06T12:24:50.325200+04:00,974514847,login,,https://lk.ulstu.ru/?q=auth/login&state=1cf775dd6bf47204dd8a82246b424a46&scope=openid&redirect_uri=https://lk.ulstu.ru/timetable/oidc/redirect&response_type=code&nonce=49922c0d2dec5c38ffdf0f68e2a96b82&client_id=77dfccdb56ed3ac2d67c5aec877787e62946b77a21f54a543491db4faa882283,,True
+2026-09-06T12:24:50.852737+04:00,974514847,schedule_page,,https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/raspisan.html,,True
+2026-09-06T12:24:50.935736+04:00,974514847,group_schedule,4,https://lk.ulstu.ru/timetable/shared/schedule/Часть 4 – КЭИ/45.html,,True

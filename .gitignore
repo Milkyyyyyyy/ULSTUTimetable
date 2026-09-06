@@ -1,10 +1,1 @@
 /.env
-*.db
-.venv/
-.idea/
-__pycache__/
-*/__pycache__/
-*.py[cod]
-cache/
-*.pyc
-logs/

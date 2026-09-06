@@ -1,0 +1,458 @@
+{
+    "schedule_part": 2,
+    "updated_at": "2026-09-05T02:20:50.765299+04:00",
+    "groups": [
+        {
+            "group": "СОбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/10.html"
+        },
+        {
+            "group": "СОбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/20.html"
+        },
+        {
+            "group": "СОбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/30.html"
+        },
+        {
+            "group": "СОбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/40.html"
+        },
+        {
+            "group": "МПГДбв-51",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/50.html"
+        },
+        {
+            "group": "ИКРСОмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/60.html"
+        },
+        {
+            "group": "Лбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/11.html"
+        },
+        {
+            "group": "Лбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/21.html"
+        },
+        {
+            "group": "Лбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/31.html"
+        },
+        {
+            "group": "СОбд-42",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/41.html"
+        },
+        {
+            "group": "ИКРСОмд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/51.html"
+        },
+        {
+            "group": "ИКРСОмв-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/61.html"
+        },
+        {
+            "group": "ЛМКбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/12.html"
+        },
+        {
+            "group": "ЛМКбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/22.html"
+        },
+        {
+            "group": "ЛМКбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/32.html"
+        },
+        {
+            "group": "Лбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/42.html"
+        },
+        {
+            "group": "ИКРСОмв-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/52.html"
+        },
+        {
+            "group": "МПГДмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/62.html"
+        },
+        {
+            "group": "МПГДбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/13.html"
+        },
+        {
+            "group": "МПГДбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/23.html"
+        },
+        {
+            "group": "МПГДбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/33.html"
+        },
+        {
+            "group": "ЛМКбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/43.html"
+        },
+        {
+            "group": "БИмд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/53.html"
+        },
+        {
+            "group": "МПГДмв-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/63.html"
+        },
+        {
+            "group": "ПМбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/14.html"
+        },
+        {
+            "group": "ПМбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/24.html"
+        },
+        {
+            "group": "ИДбву-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/34.html"
+        },
+        {
+            "group": "МПГДбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/44.html"
+        },
+        {
+            "group": "ИВТИИмд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/54.html"
+        },
+        {
+            "group": "БИмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/64.html"
+        },
+        {
+            "group": "МОАИСбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/15.html"
+        },
+        {
+            "group": "МОАИСбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/25.html"
+        },
+        {
+            "group": "ПМбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/35.html"
+        },
+        {
+            "group": "ИДбву-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/45.html"
+        },
+        {
+            "group": "ИИБАмд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/55.html"
+        },
+        {
+            "group": "ИВТИИмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/65.html"
+        },
+        {
+            "group": "ИВТИИбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/16.html"
+        },
+        {
+            "group": "ИВТИИбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/26.html"
+        },
+        {
+            "group": "МОАИСбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/36.html"
+        },
+        {
+            "group": "ПМбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/46.html"
+        },
+        {
+            "group": "ИИПАмд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/56.html"
+        },
+        {
+            "group": "ИИБАмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/66.html"
+        },
+        {
+            "group": "ИВТИИбд-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/17.html"
+        },
+        {
+            "group": "ИВТИИбд-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/27.html"
+        },
+        {
+            "group": "ИВТИИбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/37.html"
+        },
+        {
+            "group": "МОАИСбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/47.html"
+        },
+        {
+            "group": "ПМмд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/57.html"
+        },
+        {
+            "group": "ИИПАмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/67.html"
+        },
+        {
+            "group": "ИВТИИбд-13",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/18.html"
+        },
+        {
+            "group": "ИВТИИбд-23",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/28.html"
+        },
+        {
+            "group": "ИВТИИбд-32",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/38.html"
+        },
+        {
+            "group": "ИВТИИбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/48.html"
+        },
+        {
+            "group": "ИСТмд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/58.html"
+        },
+        {
+            "group": "ПМмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/68.html"
+        },
+        {
+            "group": "ИВТИИбд-14",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/19.html"
+        },
+        {
+            "group": "ИВТИИбд-24",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/29.html"
+        },
+        {
+            "group": "ИВТИИбд-33",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/39.html"
+        },
+        {
+            "group": "ИВТИИбд-42",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/49.html"
+        },
+        {
+            "group": "ПСмд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/59.html"
+        },
+        {
+            "group": "ИСТмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/69.html"
+        },
+        {
+            "group": "ИСТбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/110.html"
+        },
+        {
+            "group": "ИСТбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/210.html"
+        },
+        {
+            "group": "ИСТбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/310.html"
+        },
+        {
+            "group": "ИСТбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/410.html"
+        },
+        {
+            "group": "ИДмз-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/510.html"
+        },
+        {
+            "group": "ПСмд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/610.html"
+        },
+        {
+            "group": "ИСТбд-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/111.html"
+        },
+        {
+            "group": "ИСТбд-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/211.html"
+        },
+        {
+            "group": "ИСТбд-32",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/311.html"
+        },
+        {
+            "group": "ИСТбд-42",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/411.html"
+        },
+        {
+            "group": "Псков 0481-04М",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/511.html"
+        },
+        {
+            "group": "Консультации",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/611.html"
+        },
+        {
+            "group": "ИСТбд-13",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/112.html"
+        },
+        {
+            "group": "ИСТбд-23",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/212.html"
+        },
+        {
+            "group": "ИСТбд-33",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/312.html"
+        },
+        {
+            "group": "ИСЭбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/412.html"
+        },
+        {
+            "group": "Псков 0481-06М",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/512.html"
+        },
+        {
+            "group": "ИИмз-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/612.html"
+        },
+        {
+            "group": "ИСЭбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/113.html"
+        },
+        {
+            "group": "ИСЭбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/213.html"
+        },
+        {
+            "group": "ИСЭбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/313.html"
+        },
+        {
+            "group": "ПИбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/413.html"
+        },
+        {
+            "group": "Псков 0482-04М",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/613.html"
+        },
+        {
+            "group": "ИСЭбд-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/114.html"
+        },
+        {
+            "group": "ИСЭбд-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/214.html"
+        },
+        {
+            "group": "ПИбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/314.html"
+        },
+        {
+            "group": "ПИбд-42",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/414.html"
+        },
+        {
+            "group": "Псков 0482-06М",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/614.html"
+        },
+        {
+            "group": "ПИбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/115.html"
+        },
+        {
+            "group": "ПИбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/215.html"
+        },
+        {
+            "group": "ПИбд-32",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/315.html"
+        },
+        {
+            "group": "ПИбд-43",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/415.html"
+        },
+        {
+            "group": "ПИбд-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/116.html"
+        },
+        {
+            "group": "ПИбд-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/216.html"
+        },
+        {
+            "group": "ПИбд-33",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/316.html"
+        },
+        {
+            "group": "ПСбд-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/416.html"
+        },
+        {
+            "group": "ПИбд-13",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/117.html"
+        },
+        {
+            "group": "ПИбд-23",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/217.html"
+        },
+        {
+            "group": "ПСбд-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/317.html"
+        },
+        {
+            "group": "ВТАСбз-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/417.html"
+        },
+        {
+            "group": "ПИбд-14",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/118.html"
+        },
+        {
+            "group": "ПИбд-24",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/218.html"
+        },
+        {
+            "group": "ВТАСбзу-31",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/318.html"
+        },
+        {
+            "group": "ВТАСбзу-41",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/418.html"
+        },
+        {
+            "group": "ПСбд-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/119.html"
+        },
+        {
+            "group": "ПСбд-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/219.html"
+        },
+        {
+            "group": "ВТАСбз-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/120.html"
+        },
+        {
+            "group": "ВТАСбз-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/220.html"
+        },
+        {
+            "group": "ИДбз-11",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/121.html"
+        },
+        {
+            "group": "ИДбз-21",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/221.html"
+        },
+        {
+            "group": "ИДбз-12",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/122.html"
+        },
+        {
+            "group": "ИДбз-22",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/222.html"
+        },
+        {
+            "group": "Подготовительные курсы",
+            "url": "https://lk.ulstu.ru/timetable/shared/schedule/Часть 2 – ФИСТ, ГФ/123.html"
+        }
+    ]
+}
