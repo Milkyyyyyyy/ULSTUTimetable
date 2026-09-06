@@ -10,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 from console_log import log
-from database import get_user, update_user
+from database import get_user, update_user, delete_user
 from encryption.encryption import encrypt_password
 from handlers.main_menu import show_main_menu
 from states.states import MainMenu, Settings
@@ -109,7 +109,7 @@ async def notify_invalid_input(message: Message, text: str) -> None:
 	await delete_after([sent_message, message], 2)
 
 
-async def get_settings_keyboard(has_changes: bool) -> InlineKeyboardMarkup:
+async def build_settings_buttons(has_changes: bool) -> InlineKeyboardMarkup:
 	buttons = [
 		[
 			InlineKeyboardButton(text="👤 Изменить логин", callback_data="settings:login", style="success"),
@@ -121,6 +121,9 @@ async def get_settings_keyboard(has_changes: bool) -> InlineKeyboardMarkup:
 		],
 		[
 			InlineKeyboardButton(text="🔢 Изменить подгруппу", callback_data="settings:subgroup", style="success"),
+		],
+		[
+			InlineKeyboardButton(text="⚠ Удалить аккаунт", callback_data="settings:delete_account", style="danger"),
 		],
 	]
 
@@ -171,7 +174,7 @@ async def render_settings_menu(callback: CallbackQuery, state: FSMContext, data:
 	await safe_edit_text(
 		callback.message,
 		"Выберите нужную опцию.",
-		reply_markup = await get_settings_keyboard(data.has_changes),
+		reply_markup = await build_settings_buttons(data.has_changes),
 	)
 
 
@@ -213,7 +216,7 @@ async def render_settings_after_message(bot, state: FSMContext, data: SettingsDa
 		data.settings_chat_id,
 		data.settings_message_id,
 		"Выберите нужную опцию.",
-		await get_settings_keyboard(data.has_changes),
+		await build_settings_buttons(data.has_changes),
 	)
 
 
@@ -447,3 +450,49 @@ async def cancel_changes(callback: CallbackQuery, state: FSMContext):
 		log("settings", "Отмена изменений", callback.from_user.id)
 		await state.clear()
 		await show_main_menu(callback.message, state, True)
+
+accept_buttons = InlineKeyboardMarkup(
+	inline_keyboard=[
+		[
+InlineKeyboardButton(
+			text = "❎ Отменить удаление",
+			callback_data="account_deletion:decline",
+			style="danger"
+		),
+		InlineKeyboardButton(
+			text = "✅ Подтвердить удаление",
+			callback_data="account_deletion:accept",
+			style="success"
+		),
+		]
+	]
+)
+@router.callback_query(Settings.settings, F.data == "settings:delete_account")
+async def delete_account(callback: CallbackQuery, state: FSMContext):
+	log("settings", "Нажата кнопка удаления аккаунта", callback.from_user.id)
+
+	await callback.answer()
+	await safe_edit_text(
+		message=callback.message,
+		text="Вы уверены, что хотите <b>удалить аккаунт?</b>\n"
+		     "Вы можете в любой момент зарегистрироваться снова с помощью /start",
+		parse_mode="HTML",
+		reply_markup=accept_buttons
+	)
+
+	await state.set_state(Settings.waiting_for_deletion_acceptation)
+
+
+@router.callback_query(Settings.waiting_for_deletion_acceptation, F.data.startswith("account_deletion"))
+async def delete_account_acceptation_handler(callback: CallbackQuery, state: FSMContext):
+	choice = callback.data.split(":")[1]
+	match choice:
+		case "accept":
+			log("settings", "Пользователь подтвердил удаление аккаунта", callback.from_user.id)
+			await callback.message.answer("<i>Прощай</i>",
+			                              parse_mode="HTML")
+			await delete_user(callback.from_user.id)
+			await state.clear()
+		case "decline":
+			log("settings", "Пользователь отменил удаление", callback.from_user.id)
+			await show_main_menu(callback.message, state, True)

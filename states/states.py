@@ -20,6 +20,7 @@ class Settings(StatesGroup):
 	waiting_for_group = State()
 	waiting_for_subgroup = State()
 	waiting_for_facult = State()
+	waiting_for_deletion_acceptation = State()
 
 
 class ScheduleSelection(StatesGroup):
