@@ -593,9 +593,10 @@ async def schedule_week_image_handler(
             f"Ошибка получения расписания (week:{action}): {error}",
             user_id,
         )
-        await callback.message.answer(
+        error_message = await callback.message.answer(
             format_schedule_error(error)
         )
+        await delete_after(error_message, 8)
         return
 
     if not schedule:
