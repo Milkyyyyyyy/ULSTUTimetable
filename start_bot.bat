@@ -1,3 +1,15 @@
 @echo off
 
-wt cmd.exe /k "cd /d ""%~dp0"" && .venv\Scripts\python.exe bot.py"
+cd /d "%~dp0"
+
+if not defined WT_SESSION (
+    wt -d . cmd.exe /k call "%~f0"
+    exit /b
+)
+
+:restart
+.venv\Scripts\python.exe bot.py
+
+if %ERRORLEVEL%==42 goto restart
+
+pause
