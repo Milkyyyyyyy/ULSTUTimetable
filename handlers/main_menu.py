@@ -154,7 +154,7 @@ async def build_main_menu_buttons(
             text="⚙ Настройки",
             callback_data="open_settings",
             style="primary",
-        )
+        ),
     ])
 
     return InlineKeyboardMarkup(
