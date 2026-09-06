@@ -34,8 +34,6 @@ dp.include_router(settings_router)
 dp.include_router(utils_router)
 
 
-
-
 @dp.message(Command("start"))
 async def start(message: Message, state: FSMContext):
     user_id = message.from_user.id
