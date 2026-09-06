@@ -41,6 +41,7 @@ async def notification_worker(bot: Bot):
                     f"(scheduled={user['notification_time']})",
                     user["telegram_id"],
                 )
+                await asyncio.sleep(0.5)
 
             except Exception as e:
                 log(
