@@ -632,9 +632,11 @@ async def schedule_week_image_handler(
     if week_index >= len(schedule):
 
         if action == "next":
-            await callback.message.answer(
-                "Следующей недели в расписании нет."
+            sent_message = await callback.message.answer(
+                "Следующей недели в расписании нет.\n"
+                "Попробуйте позже."
             )
+            await delete_after(sent_message, 8)
 
         return
 

@@ -265,38 +265,45 @@ async def get_group_schedule(
         telegram_id,
     )
 
-    session, schedule_html = await get_authenticated_session(
-        telegram_id,
-        schedule_url,
-    )
+    group_url = None
+
+    # Сначала ищем группу в кеше
+    if groups is not None:
+        for group in groups:
+            if normalize_group(group["group"]) == group_name:
+                group_url = group["url"]
+                break
+
+        if group_url is not None:
+            log(
+                "ulstu.client",
+                f"Группа найдена в переданном списке: "
+                f"{user['group_name']}",
+                telegram_id,
+            )
+
+    session = await get_authenticated_session(telegram_id)
 
     try:
-        group_url = None
-
-        # Сначала пытаемся найти группу в переданном списке
-        if groups is not None:
-            for group in groups:
-                if normalize_group(group["group"]) == group_name:
-                    group_url = group["url"]
-                    break
-
-            if group_url is not None:
-                log(
-                    "ulstu.client",
-                    f"Группа найдена в переданном списке: "
-                    f"{user['group_name']}",
-                    telegram_id,
-                )
-
-        # Если в переданном списке группа не найдена —
-        # используем старый способ поиска через страницу расписания
+        # Если в кеше группы нет —
+        # только теперь запрашиваем raspisan.html.
         if group_url is None:
             log(
                 "ulstu.client",
-                f"Группа не найдена в переданном списке. "
-                f"Используем резервный поиск.",
+                "Ссылка на группу не найдена в кеше. "
+                "Получаем список групп с raspisan.html.",
                 telegram_id,
             )
+
+            response = await session.get(schedule_url)
+            response.raise_for_status()
+
+            if "auth/login" in str(response.url):
+                raise RuntimeError(
+                    "Сессия УлГТУ больше недействительна"
+                )
+
+            schedule_html = await response.text()
 
             parsed_groups = await parse_groups(
                 schedule_html,
@@ -342,11 +349,10 @@ async def get_group_schedule(
 
     finally:
         await session.close()
-
 async def get_authenticated_session(
     telegram_id: int,
-    schedule_url: str,
-):
+) -> aiohttp.ClientSession:
+
     user = await get_user(telegram_id)
 
     if user is None:
@@ -376,16 +382,24 @@ async def get_authenticated_session(
             "Пробуем использовать сохранённую сессию",
             telegram_id,
         )
-        schedule_is_available, schedule_html = (
-            await get_schedule_page(
-                session,
-                schedule_url,
-                telegram_id=telegram_id
-            )
+
+        # Проверяем сохранённую сессию без лишнего запроса
+        # к raspisan.html.
+        #
+        # Здесь нужен какой-то URL, доступный только
+        # авторизованному пользователю.
+        response = await session.get(
+            LOGIN_URL,
         )
 
-        if schedule_is_available:
-            return session, schedule_html
+        if "auth/login" not in str(response.url):
+            log(
+                "ulstu.client",
+                "Сохранённая сессия действительна",
+                telegram_id,
+            )
+
+            return session
 
         log(
             "ulstu.client",
@@ -408,28 +422,20 @@ async def get_authenticated_session(
             )
 
         cookies_json = await serialize_cookies(session)
-        encrypted_cookies= await encrypt_data(cookies_json)
+        encrypted_cookies = await encrypt_data(cookies_json)
 
         await update_user(
             telegram_id,
             session_cookies=encrypted_cookies,
         )
 
-        schedule_is_available, schedule_html = (
-            await get_schedule_page(
-                session,
-                schedule_url,
-                telegram_id=telegram_id
-            )
+        log(
+            "ulstu.client",
+            "Новая сессия сохранена",
+            telegram_id,
         )
 
-        if not schedule_is_available:
-            raise RuntimeError(
-                "Не удалось получить расписание "
-                "после авторизации"
-            )
-
-        return session, schedule_html
+        return session
 
     except Exception:
         await session.close()

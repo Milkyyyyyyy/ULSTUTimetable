@@ -7,7 +7,7 @@ from console_log import log
 UNSET = object()
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "timetable.db"
+DB_PATH = BASE_DIR / "data/timetable.db"
 
 
 async def init_db():
