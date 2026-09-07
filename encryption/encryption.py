@@ -1,7 +1,7 @@
 """
 Шифрование чувствительных данных (пароли, cookies) через Fernet.
 
-Ключ берётся из ENCRYPTION_KEY в .env. В БД хранится только шифротекст.
+Ключ берётся из ENCRYPTION_KEY в .env.
 """
 
 import os
@@ -21,10 +21,10 @@ fernet = Fernet(ENCRYPTION_KEY.encode())
 
 
 async def encrypt_data(data: str) -> str:
-	"""Шифрует строку и возвращает текст в base64."""
-	return fernet.encrypt(data.encode()).decode()
+    """Шифрует строку и возвращает текст в base64."""
+    return fernet.encrypt(data.encode()).decode()
 
 
 async def decrypt_data(encrypted_data: str) -> str:
-	"""Дешифрует текст, полученный от encrypt_data, и возвращает исходную строку."""
-	return fernet.decrypt(encrypted_data.encode()).decode()
+    """Дешифрует текст, полученный от encrypt_data, и возвращает исходную строку."""
+    return fernet.decrypt(encrypted_data.encode()).decode()
