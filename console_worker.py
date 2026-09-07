@@ -3,10 +3,8 @@
 (команды stop, restart, restore_fsm) через prompt_toolkit.
 """
 
-import asyncio
-
 from console_log import log
-from fsm_manager import restore_main_menu_states
+from states.fsm_manager import restore_main_menu_states
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from console_log import log
 from console_worker import console_worker
 from database import init_db, get_user
-from fsm_manager import restore_main_menu_states
+from states.fsm_manager import restore_main_menu_states
 from handlers.main_menu import router as main_menu_router, show_main_menu
 from handlers.notification_settings import router as notification_settings_router
 from handlers.registration import router as registration_router, start_registration

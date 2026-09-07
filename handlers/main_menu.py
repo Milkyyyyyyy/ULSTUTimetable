@@ -7,7 +7,6 @@ import random
 from datetime import date, timedelta, datetime
 
 from aiogram import Router, F
-from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile
 from aiogram.types import (
