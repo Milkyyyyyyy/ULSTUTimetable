@@ -215,14 +215,24 @@ async def get_schedule_groups(
         telegram_id,
     )
 
-    session, schedule_html = (
-        await get_authenticated_session(
-            telegram_id,
-            schedule_url,
-        )
+    session = await get_authenticated_session(
+        telegram_id,
     )
 
     try:
+        response = await session.get(
+            schedule_url,
+        )
+
+        response.raise_for_status()
+
+        if "auth/login" in str(response.url):
+            raise RuntimeError(
+                "Сессия УлГТУ больше недействительна"
+            )
+
+        schedule_html = await response.text()
+
         groups = await parse_groups(
             schedule_html,
             schedule_url,
@@ -238,7 +248,6 @@ async def get_schedule_groups(
 
     finally:
         await session.close()
-
 
 async def get_group_schedule(
     telegram_id: int,
