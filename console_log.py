@@ -42,13 +42,12 @@ def log(
     # Вывод в консоль
     print(log_message)
 
-    # Создаём папку logs при необходимости
-    LOGS_DIR.mkdir(exist_ok=True)
+    try:
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    log_file = LOGS_DIR / f"{date}.log"
+        log_file = LOGS_DIR / f"{date}.log"
+        with log_file.open("a", encoding="utf-8") as file:
+            file.write(f"{log_message}\n")
 
-    with log_file.open(
-        "a",
-        encoding="utf-8",
-    ) as file:
-        file.write(log_message + "\n")
+    except OSError as e:
+        print(f"Ошибка записи лога: {e}")
