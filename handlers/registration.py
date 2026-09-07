@@ -1,13 +1,18 @@
+"""
+Регистрация нового пользователя: логин/пароль от кабинета УлГТУ,
+выбор факультета, группы и подгруппы.
+"""
+
 from aiogram import F
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import Message
 
 from console_log import log
 from database import create_user, update_user
-from encryption.encryption import encrypt_password
+from encryption.encryption import encrypt_data
+from handlers.keyboards import schedule_parts_keyboard, build_subgroup_keyboard
 from handlers.main_menu import show_main_menu
 from states.states import Registration
 from ulstu.client import verify_ulstu_credentials
@@ -51,44 +56,6 @@ async def login_handler(message: Message, state: FSMContext):
     await state.set_state(Registration.waiting_for_password)
 
 
-schedule_parts_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="МФ, РТФ, ЭФ, ИФМИ",
-                callback_data="schedule_part:1",
-                style="success"
-            ),
-            InlineKeyboardButton(
-                text="ФИСТ, ГФ",
-                callback_data="schedule_part:2",
-                style="success"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="ИАТУ, ИЭФ, ЗВФ ИННО",
-                callback_data="schedule_part:3",
-                style="success"
-            ),
-
-            InlineKeyboardButton(
-                text="КЭИ",
-                callback_data="schedule_part:4",
-                style="success"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="СФ",
-                callback_data="schedule_part:5",
-                style="success"
-            )
-        ],
-    ]
-)
-
-
 @router.message(Registration.waiting_for_password)
 async def password_handler(
     message: Message,
@@ -103,7 +70,7 @@ async def password_handler(
     )
 
     password_plain = message.text
-    encrypted_password = await encrypt_password(password_plain)
+    encrypted_password = await encrypt_data(password_plain)
 
     await message.delete()
 
@@ -185,31 +152,6 @@ async def facult_handler(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-subgroup_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="1 подгруппа",
-                callback_data="subgroup:1",
-                style="primary"
-            ),
-            InlineKeyboardButton(
-                text="2 подгруппа",
-                callback_data="subgroup:2",
-                style="primary"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="Пропустить",
-                callback_data="subgroup:skip",
-                style="danger"
-            )
-        ]
-    ]
-)
-
-
 @router.message(Registration.waiting_for_group)
 async def group_handler(message: Message, state: FSMContext):
     group = normalize_group(message.text)
@@ -235,7 +177,7 @@ async def group_handler(message: Message, state: FSMContext):
         "<b>Выберите вашу подгруппу</b>\n"
         "Если фильтр по подгруппе вам не нужен, нажмите \"Пропустить\"",
         parse_mode="HTML",
-        reply_markup=subgroup_keyboard
+        reply_markup=build_subgroup_keyboard("Пропустить")
     )
     await state.set_state(Registration.waiting_for_subgroup)
 

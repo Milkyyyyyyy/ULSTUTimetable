@@ -1,3 +1,9 @@
+"""
+Настройки пользователя: логин, пароль, факультет, группа, подгруппа
+и удаление аккаунта. Изменения накапливаются в состоянии FSM и
+применяются одной кнопкой.
+"""
+
 import asyncio
 import logging
 from collections import defaultdict
@@ -11,12 +17,14 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 from console_log import log
 from database import get_user, update_user, delete_user
-from encryption.encryption import encrypt_password
+from encryption.encryption import encrypt_data
+from handlers.keyboards import schedule_parts_keyboard, build_subgroup_keyboard
 from handlers.main_menu import show_main_menu
 from states.states import MainMenu, Settings
 from ulstu.schedule import is_group_valid_advanced
 from utils import delete_after
 from utils import safe_edit_text, safe_bot_edit_text
+from validator.group import normalize_group
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -267,7 +275,7 @@ async def password_handler(message: Message, state: FSMContext):
 		return
 
 	async with user_lock(message.from_user.id):
-		password = await encrypt_password(raw_password)
+		password = await encrypt_data(raw_password)
 
 		data = await get_settings_data(state)
 		data.ulstu_password_encrypted = password
@@ -278,23 +286,6 @@ async def password_handler(message: Message, state: FSMContext):
 		await message.delete()
 		await state.set_state(Settings.settings)
 		await render_settings_after_message(message.bot, state, data)
-
-
-schedule_parts_keyboard = InlineKeyboardMarkup(
-	inline_keyboard=[
-		[
-			InlineKeyboardButton(text="МФ, РТФ, ЭФ, ИФМИ", callback_data="schedule_part:1", style="success"),
-			InlineKeyboardButton(text="ФИСТ, ГФ", callback_data="schedule_part:2", style="success"),
-		],
-		[
-			InlineKeyboardButton(text="ИАТУ, ИЭФ, ЗВФ ИННО", callback_data="schedule_part:3", style="success"),
-			InlineKeyboardButton(text="КЭИ", callback_data="schedule_part:4", style="success"),
-		],
-		[
-			InlineKeyboardButton(text="СФ", callback_data="schedule_part:5", style="success"),
-		],
-	]
-)
 
 
 @router.callback_query(Settings.settings, F.data == "settings:facult")
@@ -335,7 +326,7 @@ async def group_button_handler(callback: CallbackQuery, state: FSMContext):
 @router.message(Settings.waiting_for_group)
 async def group_handler(message: Message, state: FSMContext):
 	data = await get_settings_data(state)
-	group_name = message.text
+	group_name = normalize_group(message.text)
 	if not await is_group_valid_advanced(message.chat.id, group_name, override_schedule_part=data.schedule_part):
 		log(
 			"settings",
@@ -356,25 +347,12 @@ async def group_handler(message: Message, state: FSMContext):
 		await render_settings_after_message(message.bot, state, data)
 
 
-subgroup_keyboard = InlineKeyboardMarkup(
-	inline_keyboard=[
-		[
-			InlineKeyboardButton(text="1 подгруппа", callback_data="subgroup:1", style="primary"),
-			InlineKeyboardButton(text="2 подгруппа", callback_data="subgroup:2", style="primary"),
-		],
-		[
-			InlineKeyboardButton(text="Выкл. фильтр подгрупп", callback_data="subgroup:skip", style="danger"),
-		],
-	]
-)
-
-
 @router.callback_query(Settings.settings, F.data == "settings:subgroup")
 async def subgroup_button_handler(callback: CallbackQuery, state: FSMContext):
 	log("settings", "Изменение подгруппы", callback.from_user.id)
 	await state.set_state(Settings.waiting_for_subgroup)
 	await callback.answer()
-	await safe_edit_text(callback.message, "Выберите подгруппу:", reply_markup=subgroup_keyboard)
+	await safe_edit_text(callback.message, "Выберите подгруппу:", reply_markup=build_subgroup_keyboard("Выкл. фильтр подгрупп"))
 
 
 @router.callback_query(Settings.waiting_for_subgroup, F.data.startswith("subgroup:"))
@@ -454,19 +432,13 @@ async def cancel_changes(callback: CallbackQuery, state: FSMContext):
 accept_buttons = InlineKeyboardMarkup(
 	inline_keyboard=[
 		[
-InlineKeyboardButton(
-			text = "❎ Отменить удаление",
-			callback_data="account_deletion:decline",
-			style="danger"
-		),
-		InlineKeyboardButton(
-			text = "✅ Подтвердить удаление",
-			callback_data="account_deletion:accept",
-			style="success"
-		),
+			InlineKeyboardButton(text="❎ Отменить удаление", callback_data="account_deletion:decline", style="danger"),
+			InlineKeyboardButton(text="✅ Подтвердить удаление", callback_data="account_deletion:accept", style="success"),
 		]
 	]
 )
+
+
 @router.callback_query(Settings.settings, F.data == "settings:delete_account")
 async def delete_account(callback: CallbackQuery, state: FSMContext):
 	log("settings", "Нажата кнопка удаления аккаунта", callback.from_user.id)

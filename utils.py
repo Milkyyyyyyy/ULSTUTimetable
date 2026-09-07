@@ -1,3 +1,8 @@
+"""
+Общие утилиты: автоудаление сообщений, безопасное редактирование
+и кнопка «Удалить» для временных сообщений.
+"""
+
 import asyncio
 import logging
 
@@ -15,6 +20,7 @@ async def delete_after(
 		messages: Message | list[Message],
 		delay: float
 ):
+	"""Удаляет сообщение(ия) через delay секунд в фоновой задаче."""
 	async def delete():
 		await asyncio.sleep(delay)
 
@@ -38,6 +44,7 @@ async def delete_after(
 
 
 async def safe_edit_text(message: Message, text: str, parse_mode: str|None = None, reply_markup: InlineKeyboardMarkup = None) -> None:
+	"""Как edit_text, но молча пропускает "message is not modified"."""
 	try:
 		await message.edit_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
 	except TelegramBadRequest as e:
@@ -48,6 +55,7 @@ async def safe_edit_text(message: Message, text: str, parse_mode: str|None = Non
 async def safe_bot_edit_text(
 		bot, chat_id: int, message_id: int, text: str,
 		reply_markup: InlineKeyboardMarkup = None) -> None:
+	"""То же, что safe_edit_text, но редактирование через bot по chat_id/message_id."""
 	try:
 		await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, reply_markup=reply_markup)
 	except TelegramBadRequest as e:
@@ -55,24 +63,22 @@ async def safe_bot_edit_text(
 			raise
 
 
-async def build_delete_button(message: Message):
+def build_delete_button() -> InlineKeyboardMarkup:
+	"""Кнопка «Удалить»; обработчик удаляет то сообщение, на котором она стоит."""
 	return InlineKeyboardMarkup(
 		inline_keyboard=[
 			[
 				InlineKeyboardButton(
 					text="Удалить",
-					callback_data=f"botUtilsDelete:{message.message_id}"
+					callback_data="botUtilsDelete"
 				)
 			]
 		]
 	)
 
 
-@router.callback_query(
-	F.data.startswith("botUtilsDelete:")
-)
+@router.callback_query(F.data == "botUtilsDelete")
 async def delete_on_button(callback: CallbackQuery):
 	await callback.answer()
 	log("utils", "Удаление сообщения по кнопке", callback.from_user.id)
-	message = callback.message
-	await message.delete()
+	await callback.message.delete()

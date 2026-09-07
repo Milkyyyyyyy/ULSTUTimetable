@@ -1,3 +1,8 @@
+"""
+Консольный воркер: позволяет управлять ботом из терминала
+(команды stop, restart, restore_fsm) через prompt_toolkit.
+"""
+
 import asyncio
 
 from console_log import log

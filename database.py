@@ -1,10 +1,15 @@
+"""
+Хранение данных пользователей: авторизационные данные УлГТУ,
+выбор расписания и настройки оповещений (SQLite через aiosqlite).
+"""
+
 from pathlib import Path
 
 import aiosqlite
 
 from console_log import log
 
-UNSET = object()
+UNSET = object()  # Специальный маркер: параметр не передан — значение не трогаем
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "data/timetable.db"
@@ -109,6 +114,7 @@ async def update_user(
 		notification_enabled: bool | None = None,
 		notification_last_sent: str | None = None,
 ):
+	"""Обновляет только переданные (не None) поля пользователя по telegram_id."""
 	fields = []
 	values = []
 	changed = []
@@ -198,6 +204,7 @@ async def delete_user(telegram_id: int):
 
 
 async def get_users_for_notification(current_time: str, current_date: str):
+    """Возвращает пользователей, которым нужно отправить оповещение сейчас."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
 

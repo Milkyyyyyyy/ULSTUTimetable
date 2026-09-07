@@ -1,3 +1,8 @@
+"""
+Работа с расписанием: парсинг HTML-страниц УлГТУ, локальный кэш,
+форматирование сообщений и отправка расписания пользователю.
+"""
+
 import asyncio
 import json
 import re
@@ -17,6 +22,7 @@ from validator.group import normalize_group
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = BASE_DIR / 'cache'
+# Расписание обновляется часто, список групп — редко
 CACHE_TTL = timedelta(minutes=120)
 GROUPS_CACHE_TTL = timedelta(days=90)
 
@@ -36,6 +42,7 @@ def get_schedule_for_date(
 
 
 def parse_schedule(html: str) -> list[dict]:
+    """Разбирает HTML расписания на список недель с днями и парами."""
     soup = BeautifulSoup(html, "html.parser")
 
     tables = soup.find_all("table")
@@ -154,6 +161,7 @@ def parse_schedule(html: str) -> list[dict]:
 
 
 def parse_lesson_text(text: str) -> list[dict]:
+    """Разбирает многострочную ячейку пары на отдельные занятия."""
     lines = [
         line.strip()
         for line in text.splitlines()
@@ -220,6 +228,7 @@ def parse_lesson_text(text: str) -> list[dict]:
 
 
 async def get_schedule(telegram_id: int) -> list[dict]:
+    """Возвращает расписание пользователя, используя локальный кэш."""
     user = await get_user(telegram_id)
 
     if user is None:
@@ -241,15 +250,15 @@ async def get_schedule(telegram_id: int) -> list[dict]:
     )
 
     # Сначала проверяем локальный кэш
-    cached_data = load_schedule_cache(cache_path)
+    cached_schedule = load_cache(cache_path, "schedule", CACHE_TTL)
 
-    if cached_data is not None:
+    if cached_schedule is not None:
         log(
             "ulstu.schedule",
             "Используем расписание из кэша",
             telegram_id,
         )
-        return cached_data["schedule"]
+        return cached_schedule
 
     # Только теперь идём в УлГТУ
     log(
@@ -270,11 +279,12 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 
     schedule = parse_schedule(html)
 
-    save_schedule_cache(
+    save_cache(
         cache_path,
-        group_name,
-        schedule_part,
-        schedule
+        "schedule",
+        schedule,
+        group=group_name,
+        schedule_part=schedule_part,
     )
     log(
         "ulstu.schedule",
@@ -361,31 +371,21 @@ def format_schedule_error(error: BaseException) -> str:
     )
 
 
-def is_cache_fresh(updated_at: str) -> bool:
-    updated = datetime.fromisoformat(updated_at)
-
-    if updated.tzinfo is None:
-        now = datetime.now()
-    else:
-        now = datetime.now().astimezone()
-
-    return now - updated < CACHE_TTL
-
-
 def escape_html(value) -> str:
+    """Экранирует значение для безопасной вставки в HTML-сообщение."""
     return escape(str(value), quote=False)
 
 
 def get_cache_path(schedule_part: int, group_name: str) -> Path:
+    """Путь к JSON-кэшу расписания конкретной группы."""
     part_dir = CACHE_DIR / str(schedule_part)
     part_dir.mkdir(parents=True, exist_ok=True)
 
-    group_name = normalize_group(group_name)
-
-    return part_dir / f"{group_name}.json"
+    return part_dir / f"{normalize_group(group_name)}.json"
 
 
-def load_schedule_cache(path: Path) -> dict | None:
+def load_cache(path: Path, data_key: str, ttl: timedelta):
+    """Возвращает данные из кэша по ключу, или None если кэш устарел/поврежден."""
     if not path.exists():
         return None
 
@@ -397,31 +397,33 @@ def load_schedule_cache(path: Path) -> dict | None:
             return None
 
         updated_at = data.get("updated_at")
-        schedule = data.get("schedule")
+        payload = data.get(data_key)
 
-        if not updated_at or schedule is None:
+        if not updated_at or payload is None:
             return None
 
-        if not is_cache_fresh(updated_at):
+        updated = datetime.fromisoformat(updated_at)
+
+        if updated.tzinfo is None:
+            now = datetime.now()
+        else:
+            now = datetime.now().astimezone()
+
+        if now - updated >= ttl:
             return None
 
-        return data
+        return payload
 
     except (OSError, json.JSONDecodeError, ValueError):
         return None
 
 
-def save_schedule_cache(
-        path: Path,
-        group_name: str,
-        schedule_part: int,
-        schedule: list[dict]
-):
+def save_cache(path: Path, data_key: str, payload, **meta) -> None:
+    """Сохраняет данные в JSON-кэш вместе с дополнительными полями **meta."""
     data = {
-        "group": group_name,
-        "schedule_part": schedule_part,
+        **meta,
+        data_key: payload,
         "updated_at": datetime.now().astimezone().isoformat(),
-        "schedule": schedule
     }
 
     with path.open("w", encoding="utf-8") as file:
@@ -527,6 +529,7 @@ async def send_schedule(
         message: Message,
         schedule: dict,
 ):
+    """Отправляет расписание на день с кнопкой «Удалить»."""
     message_text = await format_day_schedule(
         schedule,
         message.chat.id,
@@ -535,72 +538,23 @@ async def send_schedule(
     await message.answer(
         text=message_text,
         parse_mode="HTML",
-        reply_markup=await build_delete_button(message),
+        reply_markup=build_delete_button(),
     )
 
 
 def get_groups_cache_path(schedule_part: int) -> Path:
+    """Путь к JSON-кэшу списка групп заданной части расписания."""
     part_dir = CACHE_DIR / str(schedule_part)
     part_dir.mkdir(parents=True, exist_ok=True)
 
     return part_dir / "groups.json"
 
-def load_groups_cache(path: Path) -> dict | None:
-    if not path.exists():
-        return None
 
-    try:
-        with path.open("r", encoding="utf-8") as file:
-            data = json.load(file)
-
-        if not isinstance(data, dict):
-            return None
-
-        updated_at = data.get("updated_at")
-        groups = data.get("groups")
-
-        if not updated_at or not isinstance(groups, list):
-            return None
-
-        updated = datetime.fromisoformat(updated_at)
-
-        if (
-            datetime.now().astimezone() - updated
-            >= GROUPS_CACHE_TTL
-        ):
-            return None
-
-        return data
-
-    except (
-        OSError,
-        json.JSONDecodeError,
-        ValueError,
-    ):
-        return None
-
-def save_groups_cache(
-    path: Path,
-    schedule_part: int,
-    groups: list[dict],
-):
-    data = {
-        "schedule_part": schedule_part,
-        "updated_at": datetime.now().astimezone().isoformat(),
-        "groups": groups,
-    }
-
-    with path.open("w", encoding="utf-8") as file:
-        json.dump(
-            data,
-            file,
-            ensure_ascii=False,
-            indent=4,
-        )
 async def get_available_groups(
     telegram_id: int,
     override_schedule_part: int | None = None,
 ) -> list[dict]:
+    """Возвращает список групп части расписания с кэшем на 90 дней."""
     user = await get_user(telegram_id)
 
     if user is None:
@@ -620,18 +574,18 @@ async def get_available_groups(
 
     cache_path = get_groups_cache_path(schedule_part)
 
-    cached_data = load_groups_cache(cache_path)
+    cached_groups = load_cache(cache_path, "groups", GROUPS_CACHE_TTL)
 
-    if cached_data is not None:
+    if cached_groups is not None:
         log(
             "ulstu.schedule",
             f"Используем список групп из кэша: "
             f"part={schedule_part}, "
-            f"groups={len(cached_data['groups'])}",
+            f"groups={len(cached_groups)}",
             telegram_id,
         )
 
-        return cached_data["groups"]
+        return cached_groups
 
     log(
         "ulstu.schedule",
@@ -647,10 +601,11 @@ async def get_available_groups(
 
     groups = normalize_groups(groups)
 
-    save_groups_cache(
+    save_cache(
         cache_path,
-        schedule_part,
+        "groups",
         groups,
+        schedule_part=schedule_part,
     )
 
     log(
@@ -681,6 +636,7 @@ async def is_group_valid_advanced(
     )
 
 def normalize_groups(groups: list[dict]) -> list[dict]:
+    """Разворачивает группы из строк вида "А, Б" в отдельные записи."""
     result = []
 
     for item in groups:

@@ -1,3 +1,8 @@
+"""
+Генерация изображения расписания на неделю в виде таблицы (PNG).
+Используется Pillow + шрифты DejaVuSans.
+"""
+
 from io import BytesIO
 from pathlib import Path
 

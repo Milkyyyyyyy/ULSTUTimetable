@@ -1,3 +1,8 @@
+"""
+Фоновый воркер: ежедневно рассылает пользователям расписание на завтра
+в указанное время (notification_time).
+"""
+
 import asyncio
 from datetime import datetime, date, timedelta
 
@@ -13,6 +18,7 @@ from utils import build_delete_button
 
 
 async def notification_worker(bot: Bot):
+    """Бесконечный цикл: раз в минуту проверяет, комему отправить расписание."""
     log("notifications", "Воркер уведомлений стартовал")
 
     while True:
@@ -57,6 +63,7 @@ async def notification_worker(bot: Bot):
 
 
 async def send_tomorrow_schedule(bot: Bot, user: dict):
+    """Формирует расписание на завтра и отправляет пользователю с кнопкой «Удалить»."""
     telegram_id = user["telegram_id"]
     log("notifications", "Отправка расписания на завтра", telegram_id)
 
@@ -90,16 +97,9 @@ async def send_tomorrow_schedule(bot: Bot, user: dict):
         telegram_id,
     )
 
-    message = await bot.send_message(
+    await bot.send_message(
         chat_id=telegram_id,
         text=message_text,
         parse_mode="HTML",
+        reply_markup=build_delete_button(),
     )
-    await bot.edit_message_text(
-        chat_id=telegram_id,
-        message_id=message.message_id,
-        text=message_text,
-        parse_mode="HTML",
-        reply_markup=await build_delete_button(message)
-    )
-    log("notifications", "Уведомление отправлено", telegram_id)

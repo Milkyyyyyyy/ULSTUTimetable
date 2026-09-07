@@ -1,3 +1,8 @@
+"""
+Логирование HTTP-запросов к сайту УлГТУ в CSV-файл logs/request_log.csv
+для последующего анализа и отладки.
+"""
+
 import csv
 from datetime import datetime
 from pathlib import Path

@@ -1,3 +1,8 @@
+"""
+Главное меню: приветствие, кнопки настроек/расписания, выбор дня,
+недели и отправка изображения расписания.
+"""
+
 import random
 from datetime import date, timedelta, datetime
 
@@ -14,8 +19,8 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from console_log import log
-from database import get_user, update_user
-from states.states import MainMenu, ScheduleSelection, NotificationSettings
+from database import get_user
+from states.states import MainMenu, ScheduleSelection
 from ulstu.schedule import (
     get_schedule_for_date,
     get_schedule,
@@ -318,20 +323,10 @@ async def schedule_button_handler(
 
     action = callback.data.split(":", 1)[1]
     user_id = callback.from_user.id
-    log("main_menu", f"Запрос расписания: {action}", user_id)
 
-    try:
-        schedule = await get_schedule(user_id)
-    except Exception as error:
-        log(
-            "main_menu",
-            f"Ошибка получения расписания ({action}): {error}",
-            user_id,
-        )
-        sent_message = await callback.message.answer(
-            format_schedule_error(error)
-        )
-        await delete_after(sent_message, 8)
+    schedule = await get_schedule_for_user(callback, action)
+
+    if schedule is None:
         return
 
     if action == "today":
@@ -585,18 +580,9 @@ async def schedule_week_image_handler(
     user_id = callback.from_user.id
     log("main_menu", f"Запрос картинки недели: {action}", user_id)
 
-    try:
-        schedule = await get_schedule(user_id)
-    except Exception as error:
-        log(
-            "main_menu",
-            f"Ошибка получения расписания (week:{action}): {error}",
-            user_id,
-        )
-        error_message = await callback.message.answer(
-            format_schedule_error(error)
-        )
-        await delete_after(error_message, 8)
+    schedule = await get_schedule_for_user(callback, f"week:{action}")
+
+    if schedule is None:
         return
 
     if not schedule:
@@ -680,181 +666,23 @@ async def schedule_week_image_handler(
         photo=photo,
         caption=caption,
         parse_mode="HTML",
-        reply_markup=await build_delete_button(
-            callback.message
-        ),
+        reply_markup=build_delete_button(),
     )
 
 
-async def build_notification_settings_button(user) -> InlineKeyboardMarkup:
-    buttons = []
-    if user['notification_time'] is not None and user['notification_time'] != "":
-        enabled = user['notification_enabled']
-        if enabled:
-            buttons.append([
-                InlineKeyboardButton(
-                    text="🔔Включено",
-                    callback_data="notification_settings:toggle",
-                    style="primary"
-                )
-            ])
-        else:
-            buttons.append([
-                InlineKeyboardButton(
-                    text="🔕Выключено",
-                    callback_data="notification_settings:toggle",
-                    style="danger"
-                )
-            ])
-    buttons.append([
-        InlineKeyboardButton(
-            text="🕒Задать время оповещения",
-            callback_data="notification_settings:set_time"
-        )
-    ])
-    buttons.append([
-        InlineKeyboardButton(
-            text="◀Назад",
-            callback_data="back_to_menu"
-        )
-    ])
-    return InlineKeyboardMarkup(
-        inline_keyboard=buttons
-    )
+async def get_schedule_for_user(callback: CallbackQuery, action: str) -> list[dict] | None:
+    """Загружает расписание; при ошибке отправляет пользователю сообщение и возвращает None."""
+    user_id = callback.from_user.id
+    log("main_menu", f"Запрос расписания: {action}", user_id)
 
-
-@router.callback_query(
-    StateFilter(
-        MainMenu.main_menu,
-        NotificationSettings.notification_setting
-    ),
-    F.data.in_({
-        "notification_settings:open",
-        "notification_settings:toggle",
-    }),
-)
-async def notification_settings_menu_button_handler(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-
-    telegram_id = callback.from_user.id
-    user = await get_user(telegram_id)
-    action = callback.data.split(":")[1]
-    log("main_menu", f"Настройки оповещений: {action}", telegram_id)
-
-    if action == "toggle":
-        enabled = not bool(user['notification_enabled'])
+    try:
+        return await get_schedule(user_id)
+    except Exception as error:
         log(
             "main_menu",
-            f"Автооповещение -> {'ВКЛ' if enabled else 'ВЫКЛ'}",
-            telegram_id,
+            f"Ошибка получения расписания ({action}): {error}",
+            user_id,
         )
-        await update_user(
-            telegram_id,
-            notification_enabled=enabled
-        )
-        user = await get_user(telegram_id)
-
-    await render_notification_settings_menu(callback.message, state, user)
-
-
-async def render_notification_settings_menu(message: Message, state: FSMContext, user: dict | None = None):
-    if user is None:
-        telegram_id = message.chat.id
-        user = await get_user(telegram_id)
-
-    await state.set_state(NotificationSettings.notification_setting)
-
-    message_text = "Каждый день в указанное время бот присылает расписание на завтра.\n\n"
-
-    if user['notification_time'] is None or user['notification_time'] == "":
-        message_text += "Укажите время"
-    else:
-        message_text += ("<b>Время отправки:</b>\n"
-                        f"🕒{user['notification_time']}")
-    await safe_edit_text(
-        message,
-        message_text,
-        reply_markup=await build_notification_settings_button(user),
-        parse_mode="HTML"
-    )
-
-
-def is_valid_time(value: str) -> bool:
-    try:
-        datetime.strptime(value, "%H:%M")
-        return True
-    except ValueError:
-        return False
-
-def normalize_time(value: str) -> str:
-    value = value.strip()
-
-    parsed = datetime.strptime(value, "%H:%M")
-
-    return parsed.strftime("%H:%M")
-
-@router.callback_query(
-    NotificationSettings.notification_setting,
-    F.data == "notification_settings:set_time"
-)
-async def set_time_button_handler(
-        callback: CallbackQuery,
-        state: FSMContext,
-):
-    await callback.answer()
-
-    sent_message = await callback.message.answer(
-        "Введите время в формате ЧЧ:ММ"
-    )
-
-    await state.update_data(
-        callback_message=callback.message,
-        previous_message=sent_message
-    )
-
-    await state.set_state(NotificationSettings.wait_for_time)
-
-
-
-async def get_last_sent_for_new_time(notification_time: str) -> str:
-    now = datetime.now().astimezone()
-    current_time = now.strftime("%H:%M")
-    current_date = now.strftime("%Y-%m-%d")
-
-    if notification_time > current_time:
-        return ""
-
-    return current_date
-
-@router.message(NotificationSettings.wait_for_time)
-async def time_handle(
-        message: Message,
-        state: FSMContext,
-):
-    time = message.text.strip()
-
-    if not is_valid_time(time):
-        sent_message = await message.answer(
-            "Неверный формат.\n"
-            "Попробуйте ещё раз"
-        )
-        await delete_after(sent_message, 5)
-        return
-
-    log("main_menu", f"Установлено время оповещения: {time}", message.chat.id)
-    await update_user(
-        message.chat.id,
-        notification_time=normalize_time(time),
-        notification_last_sent=await get_last_sent_for_new_time(time)
-    )
-
-    data = await state.get_data()
-
-    await message.delete()
-    await data.get("previous_message").delete()
-    callback_message = data.get("callback_message")
-
-    await render_notification_settings_menu(
-        callback_message,
-        state
-    )
+        sent_message = await callback.message.answer(format_schedule_error(error))
+        await delete_after(sent_message, 8)
+        return None
