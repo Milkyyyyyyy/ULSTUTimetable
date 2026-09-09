@@ -497,7 +497,7 @@ async def format_day_schedule(
             }
 
             lesson_text += (
-                f"<b><u>{escape_html(item['type'])}</u>"
+                f"<b><u>{escape_html(item['type'])}</u> "
                 f"{escape_html(item['subject'])}</b>\n"
             )
 
