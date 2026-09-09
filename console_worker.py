@@ -3,11 +3,11 @@
 (команды stop, restart, restore_fsm) через prompt_toolkit.
 """
 
-from console_log import log
-from states.fsm_manager import restore_main_menu_states
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 
+from console_log import log
+from states.fsm_manager import restore_main_menu_states
 from ulstu.schedule import clear_old_cache
 
 COMMANDS = [

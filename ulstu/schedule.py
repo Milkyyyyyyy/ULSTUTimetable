@@ -5,19 +5,19 @@
 
 import asyncio
 import json
-import re
-from html import escape
-from datetime import datetime, date, timedelta, timezone
-from pathlib import Path
 import random
+import re
+from datetime import date, datetime, timedelta, timezone
+from html import escape
+from pathlib import Path
 
 from aiogram.types import Message
 from bs4 import BeautifulSoup
 
 from console_log import log
 from database import get_user
-from ulstu.client import get_group_schedule, get_schedule_groups, get_group_schedule_api
 from ulstu.api_normalizer import normalize_api_schedule
+from ulstu.client import get_group_schedule, get_group_schedule_api, get_schedule_groups
 from utils import build_delete_button
 from validator.group import normalize_group
 
@@ -606,11 +606,7 @@ async def format_day_schedule(
         for item in lesson["lessons"]:
 
             # Общее занятие
-            if item["subgroup"] is None:
-                visible_lessons.append(item)
-
-            # Занятие нашей подгруппы
-            elif (
+            if item["subgroup"] is None or (
                     user_subgroup is None
                     or item["subgroup"] == user_subgroup
             ):

@@ -8,7 +8,6 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-
 # Шрифты
 
 def get_font(size: int, bold: bool = False):
@@ -96,11 +95,7 @@ def filter_lessons(
 	for item in lesson_items:
 
 		# Общее занятие
-		if item["subgroup"] is None:
-			result.append(item)
-
-		# Занятие нашей подгруппы
-		elif (
+		if item["subgroup"] is None or (
 				user_subgroup is None
 				or item["subgroup"] == user_subgroup
 		):

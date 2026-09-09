@@ -7,7 +7,6 @@ import csv
 from datetime import datetime
 from pathlib import Path
 
-
 REQUEST_LOG_PATH = Path("logs/request_log.csv")
 
 FIELDS = [

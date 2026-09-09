@@ -15,16 +15,17 @@ from dotenv import load_dotenv
 
 from console_log import log
 from console_worker import console_worker
-from database import init_db, get_user
-from states.fsm_manager import restore_main_menu_states
-from handlers.main_menu import router as main_menu_router, show_main_menu
+from database import get_user, init_db
+from handlers.main_menu import router as main_menu_router
+from handlers.main_menu import show_main_menu
 from handlers.notification_settings import router as notification_settings_router
-from handlers.registration import router as registration_router, start_registration
+from handlers.registration import router as registration_router
+from handlers.registration import start_registration
 from handlers.settings import router as settings_router
 from notifications import notification_worker
-from ulstu.schedule import clear_old_cache, cache_cleanup_loop
+from states.fsm_manager import restore_main_menu_states
+from ulstu.schedule import cache_cleanup_loop
 from utils import router as utils_router
-import pathlib
 
 load_dotenv()
 

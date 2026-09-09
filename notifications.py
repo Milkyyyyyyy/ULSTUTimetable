@@ -4,15 +4,16 @@
 """
 
 import asyncio
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 
 from aiogram import Bot
 
 from console_log import log
 from database import get_users_for_notification, update_user
 from ulstu.schedule import (
+    format_day_schedule,
     get_schedule,
-    get_schedule_for_date, format_day_schedule,
+    get_schedule_for_date,
 )
 from utils import build_delete_button
 

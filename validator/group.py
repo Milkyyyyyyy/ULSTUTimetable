@@ -4,6 +4,7 @@
 
 import re
 
+
 def normalize_group(group: str) -> str:
     """Нормализует название группы: убирает пробелы вокруг дефиса, приводит к верхнему регистру."""
     group = group.strip()
