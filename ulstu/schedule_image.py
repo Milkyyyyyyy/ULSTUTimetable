@@ -158,7 +158,7 @@ def generate_week_schedule_image(
 
 	lesson_numbers = sorted(lesson_numbers)
 
-	day_column_width = 150
+	day_column_width = 180
 	lesson_column_width = 270
 
 	title_height = 65
@@ -375,7 +375,7 @@ def generate_week_schedule_image(
 
 		day_parts = day["day"].split(",")
 
-		day_name = day_parts[0].strip()
+		day_name = day_parts[0].strip().split(" ")[0]
 		day_date = day["date"]
 
 		draw.text(

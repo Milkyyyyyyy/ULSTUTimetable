@@ -13,9 +13,12 @@ from console_log import log
 from database import get_user, update_user
 from encryption.encryption import decrypt_data, encrypt_data
 from validator.group import normalize_group
+from ulstu.api_errors import ULSTUAPIError, ULSTUAuthenticationError, ULSTUResponseError
 from ulstu.request_logger import log_request
 
 LOGIN_URL = "https://lk.ulstu.ru/timetable/"
+TIME_ULSTU_API_URL = "https://time.ulstu.ru/api/1.0/timetable"
+TIME_ULSTU_VERSION_URL = "https://time.ulstu.ru/api/1.0/last-version"
 # Общий таймаут для всех запросов к сайту УлГТУ
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(
 	total=30,
@@ -414,3 +417,194 @@ async def get_authenticated_session(
 	except Exception:
 		await session.close()
 		raise
+
+
+async def _api_request(
+	session: aiohttp.ClientSession,
+	url: str,
+	params: dict | None,
+	telegram_id: int,
+) -> dict:
+	"""Общий GET-запрос к time.ulstu.ru/api.
+
+	Следует цепочке OIDC-редиректов (lk.ulstu.ru ↔ time.ulstu.ru).
+	Возвращает распарсенный JSON response.
+	Кидает ULSTUAuthenticationError при редиректе на auth/login.
+	Кидает ULSTUResponseError при неожиданном формате ответа.
+	"""
+	response = await session.get(url, params=params, allow_redirects=False)
+
+	# OIDC redirect chain: time.ulstu.ru → lk.ulstu.ru → time.ulstu.ru
+	if response.status in (301, 302, 303, 307, 308):
+		location = response.headers.get("Location", "")
+
+		if "auth/login" in location:
+			raise ULSTUAuthenticationError("Требуется повторная авторизация")
+
+		# Следуем редиректам через lk.ulstu.ru OIDC
+		current_url = urljoin(str(response.url), location)
+		max_redirects = 10
+		redirect_count = 0
+
+		while current_url and redirect_count < max_redirects:
+			redirect_count += 1
+			resp = await session.get(current_url, allow_redirects=False)
+			location = resp.headers.get("Location", "")
+
+			if "auth/login" in location:
+				raise ULSTUAuthenticationError("Требуется повторная авторизация")
+
+			if resp.status in (301, 302, 303, 307, 308) and location:
+				current_url = urljoin(str(resp.url), location)
+			else:
+				# Последний редирект вернул JSON или ошибку
+				response = resp
+				break
+
+	text = await response.text()
+
+	try:
+		data = json.loads(text)
+	except json.JSONDecodeError as e:
+		raise ULSTUResponseError(f"Битый JSON от API: {e}") from e
+
+	error_msg = data.get("error", "")
+
+	if error_msg:
+		raise ULSTUAPIError(f"API вернул ошибку: {error_msg}")
+
+	resp_data = data.get("response")
+
+	if resp_data is None:
+		raise ULSTUResponseError("API вернул response=null")
+
+	return resp_data
+
+
+async def get_schedule_version(
+	telegram_id: int,
+) -> dict | None:
+	"""Возвращает информацию о версии расписания или None при ошибке.
+
+	Данные: {"id": int, "update_date": str}
+	"""
+	log(
+		"ulstu.client",
+		"Запрос версии расписания time.ulstu.ru",
+		telegram_id,
+	)
+	log_request(
+		operation="schedule_version_api",
+		telegram_id=telegram_id,
+		url=TIME_ULSTU_VERSION_URL,
+	)
+
+	session = await get_authenticated_session(telegram_id)
+
+	try:
+		resp = await _api_request(
+			session,
+			TIME_ULSTU_VERSION_URL,
+			params=None,
+			telegram_id=telegram_id,
+		)
+
+		return {
+			"id": resp.get("id"),
+			"update_date": resp.get("updateDate"),
+		}
+
+	except ULSTUAuthenticationError:
+		log("ulstu.client", "OIDC сессия истекла для version API", telegram_id)
+		raise
+
+	except (ULSTUAPIError, ULSTUResponseError) as e:
+		log("ulstu.client", f"Ошибка version API: {e}", telegram_id)
+		return None
+
+	finally:
+		await session.close()
+
+
+async def _do_api_request(
+	session: aiohttp.ClientSession,
+	group_name: str,
+	telegram_id: int,
+) -> dict:
+	"""Один запрос к schedule API, возвращает weeks dict."""
+	resp = await _api_request(
+		session,
+		TIME_ULSTU_API_URL,
+		params={"filter": group_name},
+		telegram_id=telegram_id,
+	)
+
+	weeks = resp.get("weeks")
+
+	if not isinstance(weeks, dict):
+		raise ULSTUResponseError(
+			f"Ожидался dict weeks, получен {type(weeks).__name__}"
+		)
+
+	return weeks
+
+
+async def get_group_schedule_api(
+	telegram_id: int,
+	group_name: str,
+) -> dict:
+	"""Возвращает сырые weeks из JSON API time.ulstu.ru.
+
+	Нормализация во внутреннюю модель — в schedule.py.
+	При ошибке авторизации — повторный login + один повторный запрос.
+	"""
+	log(
+		"ulstu.client",
+		f"Запрос JSON расписания группы {group_name}",
+		telegram_id,
+	)
+	log_request(
+		operation="schedule_api",
+		telegram_id=telegram_id,
+		url=TIME_ULSTU_API_URL,
+	)
+
+	session = await get_authenticated_session(telegram_id)
+
+	try:
+		weeks = await _do_api_request(session, group_name, telegram_id)
+
+		log(
+			"ulstu.client",
+			f"JSON расписание получено: {len(weeks)} недель",
+			telegram_id,
+		)
+
+		return weeks
+
+	except ULSTUAuthenticationError:
+		log(
+			"ulstu.client",
+			"OIDC сессия истекла, повторная авторизация для schedule API",
+			telegram_id,
+		)
+
+	finally:
+		await session.close()
+
+	# Повторная авторизация и запрос
+	session = await get_authenticated_session(telegram_id)
+
+	try:
+		weeks = await _do_api_request(session, group_name, telegram_id)
+
+		log(
+			"ulstu.client",
+			f"JSON расписание получено после повторной авторизации: {len(weeks)} недель",
+			telegram_id,
+		)
+
+		return weeks
+
+	finally:
+		await session.close()

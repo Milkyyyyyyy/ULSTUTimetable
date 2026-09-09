@@ -1,6 +1,6 @@
 """
-Работа с расписанием: парсинг HTML-страниц УлГТУ, локальный кэш,
-форматирование сообщений и отправка расписания пользователю.
+Работа с расписанием: парсинг HTML-страниц УлГТУ, JSON API time.ulstu.ru,
+локальный кэш, форматирование сообщений и отправка расписания пользователю.
 """
 
 import asyncio
@@ -16,7 +16,8 @@ from bs4 import BeautifulSoup
 
 from console_log import log
 from database import get_user
-from ulstu.client import get_group_schedule, get_schedule_groups
+from ulstu.client import get_group_schedule, get_schedule_groups, get_group_schedule_api
+from ulstu.api_normalizer import normalize_api_schedule
 from utils import build_delete_button
 from validator.group import normalize_group
 
@@ -25,6 +26,9 @@ CACHE_DIR = BASE_DIR / 'cache'
 # Расписание обновляется часто, список групп — редко
 CACHE_TTL = timedelta(minutes=120)
 GROUPS_CACHE_TTL = timedelta(days=90)
+
+# Флаг: True → JSON API time.ulstu.ru, False → старый HTML парсинг
+USE_SCHEDULE_API = True
 
 
 def get_schedule_for_date(
@@ -228,72 +232,79 @@ def parse_lesson_text(text: str) -> list[dict]:
 
 
 async def get_schedule(telegram_id: int) -> list[dict]:
-    """Возвращает расписание пользователя, используя локальный кэш."""
-    user = await get_user(telegram_id)
+	"""Возвращает расписание пользователя, используя локальный кэш."""
+	user = await get_user(telegram_id)
 
-    if user is None:
-        raise ValueError("Пользователь не найден")
+	if user is None:
+		raise ValueError("Пользователь не найден")
 
-    group_name = normalize_group(user["group_name"])
-    schedule_part = user["schedule_part"]
+	group_name = normalize_group(user["group_name"])
+	schedule_part = user["schedule_part"]
 
-    cache_path = get_cache_path(
-        schedule_part,
-        group_name
-    )
+	cache_path = get_cache_path(
+		schedule_part,
+		group_name
+	)
 
-    log(
-        "ulstu.schedule",
-        f"Запрос расписания: group={user['group_name']}, "
-        f"part={schedule_part}",
-        telegram_id,
-    )
+	log(
+		"ulstu.schedule",
+		f"Запрос расписания: group={user['group_name']}, "
+		f"part={schedule_part}",
+		telegram_id,
+	)
 
-    # Сначала проверяем локальный кэш
-    cached_schedule = load_cache(cache_path, "schedule", CACHE_TTL)
+	# Сначала проверяем локальный кэш
+	cached_schedule = load_cache(cache_path, "schedule", CACHE_TTL)
 
-    if cached_schedule is not None:
-        log(
-            "ulstu.schedule",
-            "Используем расписание из кэша",
-            telegram_id,
-        )
-        return cached_schedule
+	if cached_schedule is not None:
+		log(
+			"ulstu.schedule",
+			"Используем расписание из кэша",
+			telegram_id,
+		)
+		return cached_schedule
 
-    # Только теперь идём в УлГТУ
-    log(
-        "ulstu.schedule",
-        "Кэш отсутствует или устарел — обновляем",
-        telegram_id,
-    )
+	# Только теперь идём в УлГТУ
+	log(
+		"ulstu.schedule",
+		"Кэш отсутствует или устарел — обновляем",
+		telegram_id,
+	)
 
-    groups = await get_available_groups(
-        telegram_id,
-        override_schedule_part=schedule_part,
-    )
+	if USE_SCHEDULE_API:
+		# Путь через JSON API time.ulstu.ru
+		raw_weeks = await get_group_schedule_api(
+			telegram_id,
+			group_name,
+		)
+		schedule = normalize_api_schedule(raw_weeks)
+	else:
+		# Путь через HTML расписания УлГТУ
+		groups = await get_available_groups(
+			telegram_id,
+			override_schedule_part=schedule_part,
+		)
+		html = await get_group_schedule(
+			telegram_id,
+			groups,
+		)
+		schedule = parse_schedule(html)
 
-    html = await get_group_schedule(
-        telegram_id,
-        groups,
-    )
+	save_cache(
+		cache_path,
+		"schedule",
+		schedule,
+		group=group_name,
+		schedule_part=schedule_part,
+	)
+	log(
+		"ulstu.schedule",
+		f"Расписание обновлено и сохранено в кэш "
+		f"({len(schedule)} недель)",
+		telegram_id,
+	)
 
-    schedule = parse_schedule(html)
-
-    save_cache(
-        cache_path,
-        "schedule",
-        schedule,
-        group=group_name,
-        schedule_part=schedule_part,
-    )
-    log(
-        "ulstu.schedule",
-        f"Расписание обновлено и сохранено в кэш "
-        f"({len(schedule)} недель)",
-        telegram_id,
-    )
-
-    return schedule
+	return schedule
 
 
 def format_schedule_error(error: BaseException) -> str:
