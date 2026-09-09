@@ -8,10 +8,13 @@ from states.fsm_manager import restore_main_menu_states
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 
+from ulstu.schedule import clear_old_cache
+
 COMMANDS = [
     "stop",
     "restart",
     "restore_fsm",
+    "clear_cache",
 ]
 
 completer = WordCompleter(
@@ -45,6 +48,8 @@ async def console_worker(dp, bot):
             log("console", "Получена команда restart")
             await stop_bot(dp)
             raise SystemExit(42)
+        elif command_name == "clear_cache":
+            clear_old_cache()
 
         else:
             print(f"Неизвестная команда: {command}")

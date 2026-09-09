@@ -7,7 +7,7 @@ import asyncio
 import json
 import re
 from html import escape
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 import random
 
@@ -25,11 +25,137 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = BASE_DIR / 'cache'
 # Расписание обновляется часто, список групп — редко
 CACHE_TTL = timedelta(minutes=120)
-GROUPS_CACHE_TTL = timedelta(days=90)
+GROUPS_CACHE_TTL = timedelta(days=1)
 
 # Флаг: True → JSON API time.ulstu.ru, False → старый HTML парсинг
 USE_SCHEDULE_API = True
 
+CACHE_CLEANUP_INTERVAL = timedelta(hours=3)
+
+async def cache_cleanup_loop():
+    while True:
+        try:
+            clear_old_cache()
+
+        except Exception as e:
+            log(
+                "clear_old_cache",
+                f"Ошибка фоновой очистки: {e}"
+            )
+
+        await asyncio.sleep(
+            CACHE_CLEANUP_INTERVAL.total_seconds()
+        )
+
+def clear_old_cache():
+    log("clear_old_cache", "Очистка устаревшего кеша...")
+
+    now = datetime.now(timezone.utc)
+    deleted_count = 0
+
+    for json_path in CACHE_DIR.rglob("*.json"):
+        try:
+            with json_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        updated_at_raw = data.get("updated_at")
+
+        if updated_at_raw is None:
+            try:
+                json_path.unlink()
+
+            except FileNotFoundError:
+                pass
+
+            except OSError as e:
+                log(
+                    "clear_old_cache",
+                    f"Не удалось удалить {json_path}: {e}"
+                )
+
+            else:
+                deleted_count += 1
+                log(
+                    "clear_old_cache",
+                    f"Удалён (нет updated_at): {json_path}"
+                )
+
+            continue
+
+        try:
+            updated_at = datetime.fromisoformat(updated_at_raw)
+
+        except (ValueError, TypeError):
+            try:
+                json_path.unlink()
+
+            except FileNotFoundError:
+                pass
+
+            except OSError as e:
+                log(
+                    "clear_old_cache",
+                    f"Не удалось удалить {json_path}: {e}"
+                )
+
+            else:
+                deleted_count += 1
+                log(
+                    "clear_old_cache",
+                    f"Удалён (невалидный updated_at): {json_path}"
+                )
+
+            continue
+
+        # Если timezone отсутствует — считаем UTC.
+        if updated_at.tzinfo is None:
+            updated_at = updated_at.replace(
+                tzinfo=timezone.utc
+            )
+
+        age = now - updated_at
+
+        # Выбираем TTL в зависимости от типа кэша.
+        ttl = (
+            GROUPS_CACHE_TTL
+            if json_path.name == "groups.json"
+            else CACHE_TTL
+        )
+
+        if age > ttl:
+            try:
+                json_path.unlink()
+
+            except FileNotFoundError:
+                pass
+
+            except OSError as e:
+                log(
+                    "clear_old_cache",
+                    f"Не удалось удалить {json_path}: {e}"
+                )
+
+            else:
+                deleted_count += 1
+                log(
+                    "clear_old_cache",
+                    f"Удалён (устарел на {age}, TTL={ttl}): "
+                    f"{json_path}"
+                )
+
+    if deleted_count == 0:
+        log(
+            "clear_old_cache",
+            "Очистка завершена: устаревших файлов не найдено."
+        )
+    else:
+        log(
+            "clear_old_cache",
+            f"Очистка завершена: удалено файлов — {deleted_count}."
+        )
 
 def get_schedule_for_date(
         schedule: list[dict],
@@ -415,10 +541,11 @@ def load_cache(path: Path, data_key: str, ttl: timedelta):
 
         updated = datetime.fromisoformat(updated_at)
 
+        # Нормализуем к UTC: если время без timezone, считаем UTC
         if updated.tzinfo is None:
-            now = datetime.now()
-        else:
-            now = datetime.now().astimezone()
+            updated = updated.replace(tzinfo=timezone.utc)
+
+        now = datetime.now(timezone.utc)
 
         if now - updated >= ttl:
             return None
@@ -434,7 +561,7 @@ def save_cache(path: Path, data_key: str, payload, **meta) -> None:
     data = {
         **meta,
         data_key: payload,
-        "updated_at": datetime.now().astimezone().isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
     with path.open("w", encoding="utf-8") as file:

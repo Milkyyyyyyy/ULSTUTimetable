@@ -22,7 +22,9 @@ from handlers.notification_settings import router as notification_settings_route
 from handlers.registration import router as registration_router, start_registration
 from handlers.settings import router as settings_router
 from notifications import notification_worker
+from ulstu.schedule import clear_old_cache, cache_cleanup_loop
 from utils import router as utils_router
+import pathlib
 
 load_dotenv()
 
@@ -61,6 +63,7 @@ async def main():
     log("bot", "Инициализация базы данных...")
     await init_db()
     log("bot", "База данных готова")
+    asyncio.create_task(cache_cleanup_loop())
 
     session = AiohttpSession(proxy=BOT_PROXY) if BOT_PROXY else AiohttpSession()
 
@@ -107,6 +110,8 @@ async def stop_bot(bot, notification_task):
     await bot.session.close()
 
     log("bot", "Бот остановлен")
+
+
 
 
 if __name__ == '__main__':
