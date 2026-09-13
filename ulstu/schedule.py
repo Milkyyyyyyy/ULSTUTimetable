@@ -46,6 +46,10 @@ async def cache_cleanup_loop():
         await asyncio.sleep(
             CACHE_CLEANUP_INTERVAL.total_seconds()
         )
+def delete_all_cache():
+    log("delete_all_cache", "Удаление всего кеша")
+    for json_path in CACHE_DIR.rglob("*.json"):
+        json_path.unlink();
 
 def clear_old_cache():
     log("clear_old_cache", "Очистка устаревшего кеша...")

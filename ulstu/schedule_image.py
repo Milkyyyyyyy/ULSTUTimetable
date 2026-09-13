@@ -3,6 +3,9 @@
 Используется Pillow + шрифты DejaVuSans.
 """
 
+import shutil
+import subprocess
+import sys
 from io import BytesIO
 from pathlib import Path
 
@@ -10,18 +13,54 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Шрифты
 
+def _linux_font_via_fontconfig(bold: bool) -> str | None:
+	"""Возвращает путь к шрифту с поддержкой кириллицы через fontconfig."""
+	if sys.platform == "win32" or shutil.which("fc-match") is None:
+		return None
+
+	pattern = "sans-serif:lang=ru:bold" if bold else "sans-serif:lang=ru"
+
+	try:
+		result = subprocess.run(
+			["fc-match", "--format=%{file}", pattern],
+			capture_output=True,
+			text=True,
+			check=False,
+		)
+	except (OSError, subprocess.SubprocessError):
+		return None
+
+	path = result.stdout.strip()
+
+	if path and Path(path).exists():
+		return path
+
+	return None
+
+
 def get_font(size: int, bold: bool = False):
-	"""Ищет шрифт сначала в Windows, затем в Linux."""
+	"""Ищет шрифт сначала в Windows, затем через fontconfig, затем вручную."""
 	if bold:
 		candidates = [
 			"C:/Windows/Fonts/arialbd.ttf",
 			"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+			"/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+			"/usr/share/fonts/liberation2/LiberationSans-Bold.ttf",
+			"/usr/share/fonts/gsfonts/NimbusSans-Bold.otf",
 		]
 	else:
 		candidates = [
 			"C:/Windows/Fonts/arial.ttf",
 			"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+			"/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+			"/usr/share/fonts/liberation2/LiberationSans-Regular.ttf",
+			"/usr/share/fonts/gsfonts/NimbusSans-Regular.otf",
 		]
+
+	fontconfig_path = _linux_font_via_fontconfig(bold)
+
+	if fontconfig_path:
+		candidates.insert(0, fontconfig_path)
 
 	for path in candidates:
 		if Path(path).exists():

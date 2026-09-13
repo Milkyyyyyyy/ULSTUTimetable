@@ -9,6 +9,9 @@
         lesson: {"lesson_number": int, "time": str, "lessons": list[dict]}
           class: {"type": str, "subject": str, "subgroup": int|None,
                   "teacher": str, "room": str}
+
+week — это НОМЕР СЕМЕСТРОВОЙ НЕДЕЛИ, как его показывает сайт УлГТУ
+(а не относительный индекс из JSON, где 1 = текущая неделя).
 """
 
 import re
@@ -18,14 +21,14 @@ from ulstu.api_errors import ULSTUResponseError
 
 # Стандартное расписание пар УлГТУ (used as fallback when API has no times)
 LESSON_TIMES = [
-	"08:00-09:30",
-	"09:40-11:10",
-	"11:20-12:50",
-	"13:20-14:50",
-	"15:00-16:30",
-	"16:40-18:10",
-	"18:20-19:50",
-	"20:00-21:30",
+	"08:30-09:50",
+	"10:00-11:20",
+	"11:30-12:50",
+	"13:30-14:50",
+	"15:00-16:20",
+	"16:30-17:50",
+	"18:00-19:20",
+	"19:30-20:50",
 ]
 
 DAY_NAMES = [
@@ -68,6 +71,41 @@ def _parse_name_of_lesson(raw: str) -> dict:
 	}
 
 
+def _monday_of(value: date) -> date:
+	"""Возвращает понедельник недели, в которую входит дата."""
+	return value - timedelta(days=value.weekday())
+
+
+def _semester_start_monday(reference_date: date | None = None) -> date:
+	"""Понедельник недели начала текущего семестра.
+
+	Осенний семестр начинается 1 сентября, весенний — 1 февраля.
+	Сайт УлГТУ нумерует неделю, содержащую дату начала семестра, как 1-ю.
+	"""
+	if reference_date is None:
+		reference_date = date.today()
+
+	candidates = [
+		date(reference_date.year, 9, 1),
+		date(reference_date.year, 2, 1),
+		date(reference_date.year - 1, 9, 1),
+	]
+
+	latest = max(c for c in candidates if c <= reference_date)
+
+	return _monday_of(latest)
+
+
+def _absolute_week_number(week_monday: date, reference_date: date | None = None) -> int:
+	"""Номер семестровой недели (как на сайте УлГТУ) по понедельнику недели.
+
+	Пример: при reference_date = 2026-09-13, понедельник 2026-09-07 → 2-я неделя,
+	понедельник 2026-09-14 → 3-я неделя.
+	"""
+	anchor_monday = _semester_start_monday(reference_date)
+	return (week_monday - anchor_monday).days // 7 + 1
+
+
 def _compute_day_date(week_number: int, day_index: int, reference_date: date | None = None) -> date:
 	"""Вычисляет дату дня по номеру недели и индексу дня (0=Пн).
 
@@ -86,11 +124,16 @@ def _compute_day_date(week_number: int, day_index: int, reference_date: date | N
 	return current_monday + week_offset + timedelta(days=day_index)
 
 
-def normalize_api_schedule(raw_weeks: dict) -> list[dict]:
+def normalize_api_schedule(raw_weeks: dict, reference_date: date | None = None) -> list[dict]:
 	"""Нормализует raw_weeks из API-ответа во внутреннюю модель расписания.
 
 	Вход: {"1": {"days": [{"day": 0, "lessons": [[...], [], ...]}]}}
-	Выход: [{"week": 1, "date_range": None, "days": [...]}]
+	Выход: [{"week": 2, "date_range": ("07.09.2026", "13.09.2026"), "days": [...]}]
+
+	reference_date — дата, относительно которой определяются недели
+	(по умолчанию — date.today()); передаётся в тестах для детерминизма.
+	week получает номер СЕМЕСТРОВОЙ недели по подсчёту сайта УлГТУ,
+	а не относительный ключ из JSON (1 = текущая неделя).
 	"""
 	if not isinstance(raw_weeks, dict):
 		raise ULSTUResponseError(f"Ожидался dict с неделями, получен {type(raw_weeks).__name__}")
@@ -121,7 +164,7 @@ def normalize_api_schedule(raw_weeks: dict) -> list[dict]:
 				continue
 
 			# Вычисляем дату
-			computed_date = _compute_day_date(week_number, day_index)
+			computed_date = _compute_day_date(week_number, day_index, reference_date)
 			date_str = computed_date.strftime("%d.%m.%Y")
 			day_name = f"{DAY_NAMES[day_index]} {date_str}"
 
@@ -171,15 +214,15 @@ def normalize_api_schedule(raw_weeks: dict) -> list[dict]:
 				"lessons": lessons,
 			})
 
-		# Диапазон дат недели: понедельник — суббота
-		week_monday = _compute_day_date(week_number, 0)
-		week_saturday = _compute_day_date(week_number, 5)
+		# Диапазон дат недели: понедельник — воскресенье (как на сайте УлГТУ)
+		week_monday = _compute_day_date(week_number, 0, reference_date)
+		week_sunday = _compute_day_date(week_number, 6, reference_date)
 
 		schedule.append({
-			"week": week_number,
+			"week": _absolute_week_number(week_monday, reference_date),
 			"date_range": (
 				week_monday.strftime("%d.%m.%Y"),
-				week_saturday.strftime("%d.%m.%Y"),
+				week_sunday.strftime("%d.%m.%Y"),
 			),
 			"days": days,
 		})

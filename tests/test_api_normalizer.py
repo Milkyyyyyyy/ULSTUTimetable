@@ -10,12 +10,17 @@ from ulstu.api_normalizer import (
 	normalize_api_schedule,
 	_parse_name_of_lesson,
 	_compute_day_date,
+	_absolute_week_number,
 	LESSON_TIMES,
 	DAY_NAMES,
 )
 from ulstu.api_errors import ULSTUResponseError
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+# Фиксированная «сегодняшняя» дата для детерминированных тестов:
+# воскресенье 13.09.2026 — неделя 07.09–13.09, которую сайт называет 2-й.
+REFERENCE_DATE = date(2026, 9, 13)
 
 
 @pytest.fixture
@@ -102,22 +107,23 @@ def test_compute_day_date_second_week_with_reference():
 
 
 def test_normal_basic(api_response):
-	schedule = normalize_api_schedule(api_response["response"]["weeks"])
+	schedule = normalize_api_schedule(api_response["response"]["weeks"], reference_date=REFERENCE_DATE)
 
 	assert len(schedule) == 1
 	week = schedule[0]
-	assert week["week"] == 1
+	# Номер семестровой недели: неделя 07.09.2026 — 2-я (как на сайте УлГТУ)
+	assert week["week"] == 2
 	assert week["date_range"] is not None
 	assert len(week["date_range"]) == 2
 	assert len(week["days"]) == 6  # day 0-5 (Пн-Сб)
 
 
 def test_date_range_valid(api_response):
-	schedule = normalize_api_schedule(api_response["response"]["weeks"])
+	schedule = normalize_api_schedule(api_response["response"]["weeks"], reference_date=REFERENCE_DATE)
 	week = schedule[0]
 	start_date, end_date = week["date_range"]
 
-	# Диапазон — от понедельника до субботы
+	# Диапазон — от понедельника до воскресенья
 	assert len(start_date) == 10  # DD.MM.YYYY
 	assert len(end_date) == 10
 
@@ -125,12 +131,12 @@ def test_date_range_valid(api_response):
 	s = datetime.strptime(start_date, "%d.%m.%Y").date()
 	e = datetime.strptime(end_date, "%d.%m.%Y").date()
 
-	# Суббота = понедельник + 5 дней
-	assert (e - s).days == 5
+	# Воскресенье = понедельник + 6 дней
+	assert (e - s).days == 6
 
 
 def test_day_names(api_response):
-	schedule = normalize_api_schedule(api_response["response"]["weeks"])
+	schedule = normalize_api_schedule(api_response["response"]["weeks"], reference_date=REFERENCE_DATE)
 	days = schedule[0]["days"]
 
 	for i, day in enumerate(days):
@@ -140,7 +146,7 @@ def test_day_names(api_response):
 
 
 def test_lessons_not_empty(api_response):
-	schedule = normalize_api_schedule(api_response["response"]["weeks"])
+	schedule = normalize_api_schedule(api_response["response"]["weeks"], reference_date=REFERENCE_DATE)
 	monday = schedule[0]["days"][0]  # Понедельник
 
 	# В Пн есть 3 пары
@@ -148,7 +154,7 @@ def test_lessons_not_empty(api_response):
 
 
 def test_empty_pairs_skipped(api_response):
-	schedule = normalize_api_schedule(api_response["response"]["weeks"])
+	schedule = normalize_api_schedule(api_response["response"]["weeks"], reference_date=REFERENCE_DATE)
 	saturday = schedule[0]["days"][5]  # Суббота
 
 	# Суббота пустая
@@ -156,7 +162,7 @@ def test_empty_pairs_skipped(api_response):
 
 
 def test_lesson_structure(api_response):
-	schedule = normalize_api_schedule(api_response["response"]["weeks"])
+	schedule = normalize_api_schedule(api_response["response"]["weeks"], reference_date=REFERENCE_DATE)
 	monday = schedule[0]["days"][0]
 	first_lesson = monday["lessons"][0]
 
@@ -173,7 +179,7 @@ def test_lesson_structure(api_response):
 
 
 def test_multi_subgroup(api_response):
-	schedule = normalize_api_schedule(api_response["response"]["weeks"])
+	schedule = normalize_api_schedule(api_response["response"]["weeks"], reference_date=REFERENCE_DATE)
 	# Четверг (day=4), 3-я пара (index 2)
 	thursday = schedule[0]["days"][4]
 	pair_3 = thursday["lessons"][0]  # 3-я пара
@@ -191,9 +197,40 @@ def test_week_sorted_by_key():
 		"1": {"days": [{"day": 0, "lessons": []}]},
 		"2": {"days": [{"day": 0, "lessons": []}]},
 	}
-	schedule = normalize_api_schedule(weeks_data)
+	schedule = normalize_api_schedule(weeks_data, reference_date=REFERENCE_DATE)
 	week_numbers = [w["week"] for w in schedule]
-	assert week_numbers == [1, 2, 3]
+	# Недели 07.09, 14.09, 21.09 → 2-я, 3-я, 4-я семестровые недели
+	assert week_numbers == [2, 3, 4]
+
+
+def test_absolute_week_numbers_match_site():
+	"""Номера недель совпадают с нумерацией сайта УлГТУ.
+
+	Воскресенье 13.09.2026: текущая семестровая неделя (07.09–13.09) — 2-я,
+	следующая (14.09–20.09) — 3-я.
+	"""
+	ref = date(2026, 9, 13)
+	assert _absolute_week_number(date(2026, 9, 7), ref) == 2
+	assert _absolute_week_number(date(2026, 9, 14), ref) == 3
+
+
+def test_next_week_number_is_current_plus_one():
+	"""Если текущая неделя = N, то следующая в расписании = N + 1."""
+	weeks = {
+		"1": {"days": [{"day": 0, "lessons": []}]},
+		"2": {"days": [{"day": 0, "lessons": []}]},
+	}
+	schedule = normalize_api_schedule(weeks, reference_date=REFERENCE_DATE)
+	assert schedule[0]["week"] == 2
+	assert schedule[1]["week"] == 3
+
+
+def test_week_range_includes_sunday():
+	"""Диапазон недели включает воскресенье (как на сайте)."""
+	weeks = {"1": {"days": [{"day": 0, "lessons": []}]}}
+	schedule = normalize_api_schedule(weeks, reference_date=REFERENCE_DATE)
+	assert schedule[0]["date_range"] == ("07.09.2026", "13.09.2026")
+	assert schedule[0]["week"] == 2
 
 
 def test_empty_weeks():

@@ -4,16 +4,17 @@
 """
 
 import random
-from datetime import date, timedelta, datetime
+from datetime import UTC, date, datetime, timedelta
+from time import timezone
 
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import BufferedInputFile
 from aiogram.types import (
-    Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
+    BufferedInputFile,
     CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -21,13 +22,13 @@ from console_log import log
 from database import get_user
 from states.states import MainMenu, ScheduleSelection
 from ulstu.schedule import (
-    get_schedule_for_date,
-    get_schedule,
-    send_schedule,
     format_schedule_error,
+    get_schedule,
+    get_schedule_for_date,
+    send_schedule,
 )
 from ulstu.schedule_image import generate_week_schedule_image
-from utils import safe_edit_text, build_delete_button, delete_after
+from utils import build_delete_button, delete_after, safe_edit_text
 
 router = Router()
 
@@ -552,6 +553,33 @@ def get_week_index_for_date(
         if start_date <= target_date <= end_date:
             return week_index
 
+    # Воскресенье (или выходной) не входит в дни расписания —
+    # ищем неделю по понедельнику недели target_date.
+    target_monday = target_date - timedelta(
+        days=target_date.weekday()
+    )
+
+    for week_index, week in enumerate(schedule):
+
+        date_range = week.get("date_range")
+
+        if not date_range or len(date_range) < 2:
+            continue
+
+        start_date = parse_schedule_date(
+            date_range[0]
+        )
+
+        end_date = parse_schedule_date(
+            date_range[1]
+        )
+
+        if start_date is None or end_date is None:
+            continue
+
+        if start_date <= target_monday <= end_date:
+            return week_index
+
     return None
 
 
@@ -600,9 +628,12 @@ async def schedule_week_image_handler(
     )
 
     if current_week_index is None:
-        await callback.message.answer(
-            "Не удалось определить текущую неделю "
-            "в расписании."
+        await delete_after(
+            await callback.message.answer(
+                "Не удалось определить текущую неделю "
+                "в расписании."
+            ),
+            delay=5
         )
         return
 

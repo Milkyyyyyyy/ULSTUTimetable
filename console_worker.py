@@ -8,7 +8,7 @@ from prompt_toolkit.completion import WordCompleter
 
 from console_log import log
 from states.fsm_manager import restore_main_menu_states
-from ulstu.schedule import clear_old_cache
+from ulstu.schedule import clear_old_cache, delete_all_cache
 
 COMMANDS = [
     "stop",
@@ -49,7 +49,10 @@ async def console_worker(dp, bot):
             await stop_bot(dp)
             raise SystemExit(42)
         elif command_name == "clear_cache":
-            clear_old_cache()
+            if argument == "all":
+                delete_all_cache();
+            else:
+                clear_old_cache()
 
         else:
             print(f"Неизвестная команда: {command}")
