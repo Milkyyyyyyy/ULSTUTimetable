@@ -1,6 +1,6 @@
 """Тесты нормализации JSON API time.ulstu.ru во внутреннюю модель расписания."""
 import json
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,6 +10,8 @@ from ulstu.api_normalizer import (
 	normalize_api_schedule,
 	_parse_name_of_lesson,
 	_compute_day_date,
+	_week_monday_for_label,
+	_semester_start_monday,
 	_absolute_week_number,
 	LESSON_TIMES,
 	DAY_NAMES,
@@ -20,6 +22,8 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 # Фиксированная «сегодняшняя» дата для детерминированных тестов:
 # воскресенье 13.09.2026 — неделя 07.09–13.09, которую сайт называет 2-й.
+# Метки weeks в JSON — 0-based номера семестровых недель: метка 1 → 2-я неделя,
+# метка 2 → 3-я неделя и т.д.
 REFERENCE_DATE = date(2026, 9, 13)
 
 
@@ -72,34 +76,40 @@ def test_parse_with_ordinal_subgroup():
 	assert result == {"type": "лаб.", "subject": "Тест", "subgroup": 2}
 
 
-# --- Tests for _compute_day_date ---
+# --- Tests for _week_monday_for_label / _compute_day_date ---
 
 
-def test_compute_day_date_current_week():
-	today = date.today()
-	result = _compute_day_date(week_number=1, day_index=0)
-	expected = today - timedelta(days=today.weekday())
-	assert result == expected
+def test_week_monday_for_label():
+	anchor = _semester_start_monday(date(2026, 9, 13))
+	assert anchor == date(2026, 8, 31)
+	assert _week_monday_for_label(0, REFERENCE_DATE) == date(2026, 8, 31)
+	assert _week_monday_for_label(1, REFERENCE_DATE) == date(2026, 9, 7)
+	assert _week_monday_for_label(2, REFERENCE_DATE) == date(2026, 9, 14)
 
 
-def test_compute_day_date_next_week():
-	today = date.today()
-	result = _compute_day_date(week_number=2, day_index=3)
-	expected = (today - timedelta(days=today.weekday())) + timedelta(weeks=1, days=3)
-	assert result == expected
+def test_compute_day_date_label_zero_first_semester_week():
+	# Метка 0 → 1-я семестровая неделя: пн 31.08.2026
+	result = _compute_day_date(week_label=0, day_index=0, reference_date=REFERENCE_DATE)
+	assert result == date(2026, 8, 31)
+
+
+def test_compute_day_date_label_one_second_semester_week():
+	# Метка 1 → 2-я семестровая неделя: пн 07.09.2026
+	result = _compute_day_date(week_label=1, day_index=0, reference_date=REFERENCE_DATE)
+	assert result == date(2026, 9, 7)
 
 
 def test_compute_day_date_with_reference():
 	ref = date(2026, 9, 9)  # Среда
-	result = _compute_day_date(week_number=1, day_index=0, reference_date=ref)
-	# 2026-09-09 (Ср) → понедельник = 2026-09-07
+	result = _compute_day_date(week_label=1, day_index=0, reference_date=ref)
+	# 2-я семестровая неделя (метка 1) → понедельник 2026-09-07
 	assert result == date(2026, 9, 7)
 
 
 def test_compute_day_date_second_week_with_reference():
 	ref = date(2026, 9, 9)
-	result = _compute_day_date(week_number=2, day_index=5, reference_date=ref)
-	# 2026-09-07 + 7 дней + 5 дней = 2026-09-19 (Сб)
+	result = _compute_day_date(week_label=2, day_index=5, reference_date=ref)
+	# 3-я семестровая неделя (метка 2) → пн 2026-09-14 + 5 дней = 2026-09-19 (Сб)
 	assert result == date(2026, 9, 19)
 
 
@@ -223,6 +233,32 @@ def test_next_week_number_is_current_plus_one():
 	schedule = normalize_api_schedule(weeks, reference_date=REFERENCE_DATE)
 	assert schedule[0]["week"] == 2
 	assert schedule[1]["week"] == 3
+
+
+def test_current_week_label_is_zero_based_regression():
+	"""Регрессия: метки weeks — 0-based номера семестровых недель.
+
+	Понедельник 14.09.2026 — 3-я семестровая неделя (как показывает
+	/current-week → 3). API вернул недели с метками 1 и 2: это 2-я (прошлая)
+	и 3-я (текущая). Раньше код считал метку 1 текущей неделей и сдвигал
+	всё расписание на неделю вперёд — кеш жил «в будущем».
+	"""
+	ref = date(2026, 9, 14)  # Понедельник 3-й недели семестра
+	weeks = {
+		"1": {"days": [{"day": 0, "lessons": []}]},
+		"2": {"days": [{"day": 0, "lessons": []}]},
+	}
+	schedule = normalize_api_schedule(weeks, reference_date=ref)
+
+	# Метка 1 → прошлая, 2-я семестровая неделя (07.09–13.09)
+	assert schedule[0]["week"] == 2
+	assert schedule[0]["date_range"] == ("07.09.2026", "13.09.2026")
+	assert schedule[0]["days"][0]["date"] == "07.09.2026"
+
+	# Метка 2 → текущая, 3-я семестровая неделя (14.09–20.09)
+	assert schedule[1]["week"] == 3
+	assert schedule[1]["date_range"] == ("14.09.2026", "20.09.2026")
+	assert schedule[1]["days"][0]["date"] == "14.09.2026"
 
 
 def test_week_range_includes_sunday():

@@ -19,6 +19,7 @@ from ulstu.request_logger import log_request
 LOGIN_URL = "https://lk.ulstu.ru/timetable/"
 TIME_ULSTU_API_URL = "https://time.ulstu.ru/api/1.0/timetable"
 TIME_ULSTU_VERSION_URL = "https://time.ulstu.ru/api/1.0/last-version"
+TIME_ULSTU_CURRENT_WEEK_URL = "https://time.ulstu.ru/api/1.0/current-week"
 # Общий таймаут для всех запросов к сайту УлГТУ
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(
 	total=30,
@@ -524,6 +525,56 @@ async def get_schedule_version(
 
 	finally:
 		await session.close()
+
+
+async def get_current_week(telegram_id: int) -> int | None:
+	"""Возвращает номер текущей семестровой недели или None при ошибке.
+
+	time.ulstu.ru/api/1.0/current-week возвращает {"response": 3, "error": ""}.
+	Этот номер соответствует метке weeks из расписания как (current_week - 1),
+	т.к. метки в JSON — 0-based номера семестровых недель.
+	"""
+	log(
+		"ulstu.client",
+		"Запрос текущей недели time.ulstu.ru",
+		telegram_id,
+	)
+	log_request(
+		operation="current_week_api",
+		telegram_id=telegram_id,
+		url=TIME_ULSTU_CURRENT_WEEK_URL,
+	)
+
+	session = await get_authenticated_session(telegram_id)
+
+	try:
+		resp = await _api_request(
+			session,
+			TIME_ULSTU_CURRENT_WEEK_URL,
+			params=None,
+			telegram_id=telegram_id,
+		)
+
+	except ULSTUAuthenticationError:
+		log("ulstu.client", "OIDC сессия истекла для current-week API", telegram_id)
+		raise
+
+	except (ULSTUAPIError, ULSTUResponseError) as e:
+		log("ulstu.client", f"Ошибка current-week API: {e}", telegram_id)
+		return None
+
+	finally:
+		await session.close()
+
+	if not isinstance(resp, int):
+		log(
+			"ulstu.client",
+			f"Неожиданный ответ current-week API: {type(resp).__name__}",
+			telegram_id,
+		)
+		return None
+
+	return resp
 
 
 async def _do_api_request(

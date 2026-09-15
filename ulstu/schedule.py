@@ -17,7 +17,12 @@ from bs4 import BeautifulSoup
 from console_log import log
 from database import get_user
 from ulstu.api_normalizer import normalize_api_schedule
-from ulstu.client import get_group_schedule, get_group_schedule_api, get_schedule_groups
+from ulstu.client import (
+	get_current_week,
+	get_group_schedule,
+	get_group_schedule_api,
+	get_schedule_groups,
+)
 from utils import build_delete_button
 from validator.group import normalize_group
 
@@ -408,8 +413,19 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 			group_name,
 		)
 		schedule = normalize_api_schedule(raw_weeks)
+
+		# Запрашиваем номер текущей недели, чтобы проверить нумерацию
+		current_week = await get_current_week(telegram_id)
+		log_week_mapping(
+			raw_weeks,
+			schedule,
+			current_week,
+			telegram_id,
+		)
 	else:
 		# Путь через HTML расписания УлГТУ
+		current_week = None
+
 		groups = await get_available_groups(
 			telegram_id,
 			override_schedule_part=schedule_part,
@@ -426,6 +442,7 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 		schedule,
 		group=group_name,
 		schedule_part=schedule_part,
+		current_week=current_week,
 	)
 	log(
 		"ulstu.schedule",
@@ -435,6 +452,60 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 	)
 
 	return schedule
+
+
+def log_week_mapping(
+	raw_weeks: dict,
+	schedule: list[dict],
+	current_week: int | None,
+	telegram_id: int | None = None,
+) -> None:
+	"""Логирует соответствие меток недель JSON API датам модели расписания.
+
+	Служит проверкой гипотезы о 0-based нумерации time.ulstu.ru:
+	метка k → (k+1)-я семестровая неделя, т.е. текущая неделя N из
+	/current-week должна присутствовать в расписании с меткой N - 1.
+	"""
+	labels = sorted(
+		{
+			int(key)
+			for key in raw_weeks.keys()
+			if str(key).lstrip("-").isdigit()
+		}
+	)
+
+	if not labels:
+		return
+
+	weeks_info = " | ".join(
+		f"метка {label} → неделя {entry['week']} "
+		f"({entry['date_range'][0]}–{entry['date_range'][1]})"
+		for label, entry in zip(labels, schedule)
+	)
+
+	log(
+		"ulstu.schedule",
+		f"Соответствие меток недель API: {weeks_info}",
+		telegram_id,
+	)
+
+	if current_week is None:
+		return
+
+	log(
+		"ulstu.schedule",
+		f"Текущая неделя (API /current-week): {current_week}",
+		telegram_id,
+	)
+
+	if (current_week - 1) not in labels:
+		log(
+			"ulstu.schedule",
+			f"В расписании нет метки {current_week - 1} (ожидалась для "
+			f"текущей недели при 0-based нумерации). Проверьте нумерацию "
+			f"недель time.ulstu.ru.",
+			telegram_id,
+		)
 
 
 def format_schedule_error(error: BaseException) -> str:

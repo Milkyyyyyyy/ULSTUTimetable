@@ -10,8 +10,11 @@
           class: {"type": str, "subject": str, "subgroup": int|None,
                   "teacher": str, "room": str}
 
-week — это НОМЕР СЕМЕСТРОВОЙ НЕДЕЛИ, как его показывает сайт УлГТУ
-(а не относительный индекс из JSON, где 1 = текущая неделя).
+week — это НОМЕР СЕМЕСТРОВОЙ НЕДЕЛИ, как его показывает сайт УлГТУ.
+Ключи weeks в ответе time.ulstu.ru — это 0-based номера семестровых недель:
+метка 0 → 1-я неделя семестра, 1 → 2-я, 2 → 3-я и т.д.
+Эти метки фиксированы (привязаны к началу семестра), поэтому даты недель
+не «плывут» при переходе с одной недели на другую.
 """
 
 import re
@@ -106,22 +109,35 @@ def _absolute_week_number(week_monday: date, reference_date: date | None = None)
 	return (week_monday - anchor_monday).days // 7 + 1
 
 
-def _compute_day_date(week_number: int, day_index: int, reference_date: date | None = None) -> date:
-	"""Вычисляет дату дня по номеру недели и индексу дня (0=Пн).
+def _week_monday_for_label(
+	week_label: int,
+	reference_date: date | None = None,
+) -> date:
+	"""Понедельник недели по 0-based метке JSON API.
 
-	week_number=1, day_index=0 → текущий понедельник
-	week_number=2, day_index=3 → следующий четверг и т.д.
-
-	reference_date — дата для определения текущей недели (по умолчанию date.today()).
+	Ключи weeks в ответе time.ulstu.ru — это 0-based номера семестровых недель:
+	метка 0 → 1-я неделя семестра, 1 → 2-я, 2 → 3-я и т.д.
+	Номер текущей недели N из /current-week соответствует метке N - 1.
 	"""
-	if reference_date is None:
-		reference_date = date.today()
+	anchor_monday = _semester_start_monday(reference_date)
+	return anchor_monday + timedelta(weeks=week_label)
 
-	# Текущий понедельник
-	current_monday = reference_date - timedelta(days=reference_date.weekday())
-	# Смещение: week_number=1 → текущая неделя, week_number=2 → следующая
-	week_offset = timedelta(weeks=week_number - 1)
-	return current_monday + week_offset + timedelta(days=day_index)
+
+def _compute_day_date(
+	week_label: int,
+	day_index: int,
+	reference_date: date | None = None,
+) -> date:
+	"""Вычисляет дату дня по 0-based метке недели и индексу дня (0=Пн).
+
+	week_label=2, day_index=0 → понедельник текущей недели, если текущая
+	семестровая неделя = 3 (см. _week_monday_for_label).
+
+	reference_date — дата для определения текущего семестра
+	(по умолчанию date.today()).
+	"""
+	week_monday = _week_monday_for_label(week_label, reference_date)
+	return week_monday + timedelta(days=day_index)
 
 
 def normalize_api_schedule(raw_weeks: dict, reference_date: date | None = None) -> list[dict]:
@@ -130,10 +146,15 @@ def normalize_api_schedule(raw_weeks: dict, reference_date: date | None = None) 
 	Вход: {"1": {"days": [{"day": 0, "lessons": [[...], [], ...]}]}}
 	Выход: [{"week": 2, "date_range": ("07.09.2026", "13.09.2026"), "days": [...]}]
 
-	reference_date — дата, относительно которой определяются недели
+	Ключи weeks — 0-based номера семестровых недель: метка k → (k+1)-я неделя,
+	её понедельник = понедельник начала семестра + k недель.
+	Например, метка 1 всегда указывает на 2-ю неделю семестра: если сейчас идёт
+	3-я неделя (которую выдаёт /current-week), то метка 1 — это ПРОШЛАЯ неделя,
+	а метка 2 — текущая.
+
+	reference_date — дата для определения текущего семестра
 	(по умолчанию — date.today()); передаётся в тестах для детерминизма.
-	week получает номер СЕМЕСТРОВОЙ недели по подсчёту сайта УлГТУ,
-	а не относительный ключ из JSON (1 = текущая неделя).
+	week получает номер СЕМЕСТРОВОЙ недели по подсчёту сайта УлГТУ.
 	"""
 	if not isinstance(raw_weeks, dict):
 		raise ULSTUResponseError(f"Ожидался dict с неделями, получен {type(raw_weeks).__name__}")
@@ -146,7 +167,7 @@ def normalize_api_schedule(raw_weeks: dict, reference_date: date | None = None) 
 		if not isinstance(week_data, dict):
 			continue
 
-		week_number = int(week_key)
+		week_label = int(week_key)
 		api_days = week_data.get("days", [])
 
 		if not isinstance(api_days, list):
@@ -164,7 +185,7 @@ def normalize_api_schedule(raw_weeks: dict, reference_date: date | None = None) 
 				continue
 
 			# Вычисляем дату
-			computed_date = _compute_day_date(week_number, day_index, reference_date)
+			computed_date = _compute_day_date(week_label, day_index, reference_date)
 			date_str = computed_date.strftime("%d.%m.%Y")
 			day_name = f"{DAY_NAMES[day_index]} {date_str}"
 
@@ -215,8 +236,8 @@ def normalize_api_schedule(raw_weeks: dict, reference_date: date | None = None) 
 			})
 
 		# Диапазон дат недели: понедельник — воскресенье (как на сайте УлГТУ)
-		week_monday = _compute_day_date(week_number, 0, reference_date)
-		week_sunday = _compute_day_date(week_number, 6, reference_date)
+		week_monday = _week_monday_for_label(week_label, reference_date)
+		week_sunday = week_monday + timedelta(days=6)
 
 		schedule.append({
 			"week": _absolute_week_number(week_monday, reference_date),
