@@ -183,6 +183,27 @@ def setup_logging() -> None:
 app_logger = logging.getLogger(APP_LOGGER_NAME)
 
 
+def set_log_level(level: str | int) -> int:
+    """Меняет порог логирования для приложения и сторонних модулей.
+
+    Принимает "DEBUG"/"INFO"/"WARNING"/"ERROR"/"CRITICAL" или
+    соответствующую константу logging.
+    """
+    if isinstance(level, str):
+        level = logging.getLevelName(level.upper())
+
+        if not isinstance(level, int):
+            raise ValueError(f"Неизвестный уровень логирования: {level}")
+
+    level_name = logging.getLevelName(level)
+    log("logging", f"Изменение уровня логирования: {level_name}")
+
+    logging.getLogger().setLevel(level)
+    app_logger.setLevel(level)
+
+    return level
+
+
 def log(
         place: str,
         message: str,

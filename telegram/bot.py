@@ -14,10 +14,10 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from console_log import log
+from console_worker import console_worker
 from database import get_user, init_db
 from ulstu.schedule import cache_cleanup_loop
 
-from .console_worker import console_worker
 from .handlers.main_menu import router as main_menu_router
 from .handlers.main_menu import show_main_menu
 from .handlers.notification_settings import router as notification_settings_router

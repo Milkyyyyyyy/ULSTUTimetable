@@ -9,8 +9,8 @@ import asyncio
 import os
 import sys
 
+from console_worker import RestartRequested
 from telegram.bot import main as run_telegram_bot
-from telegram.console_worker import RestartRequested
 
 
 async def run_all():

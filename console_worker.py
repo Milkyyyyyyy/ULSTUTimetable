@@ -1,18 +1,20 @@
 """
-Консольный воркер: позволяет управлять ботом из терминала
-(команды stop, restart, restore_fsm, clear_cache, cache, help,
-users, stats, notify, logs, delete_user, broadcast, db)
-через prompt_toolkit.
+Консольный воркер: универсальное управление ботом из терминала.
+
+Команды stop, restart, restore_fsm, clear_cache, cache, log_level,
+help, users, stats, notify, logs, delete_user, broadcast, db.
+Работает с любым ботом — Telegram, VK и др.; через prompt_toolkit.
 """
 
 import asyncio
+import logging
 import shutil
 from datetime import datetime
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 
-from console_log import LOGS_DIR, log
+from console_log import APP_LOGGER_NAME, LOGS_DIR, log, set_log_level
 from database import (
     DB_PATH,
     delete_user,
@@ -22,14 +24,13 @@ from database import (
     get_user,
     get_users_with_notifications,
 )
+from telegram.notifications import get_users_for_notification, send_batch
+from telegram.states.fsm_manager import restore_main_menu_states
 from ulstu.schedule import (
     clear_old_cache,
     delete_all_cache,
     get_cache_info,
 )
-
-from .notifications import get_users_for_notification, send_batch
-from .states.fsm_manager import restore_main_menu_states
 
 COMMANDS = [
     "stop",
@@ -37,6 +38,7 @@ COMMANDS = [
     "restore_fsm",
     "clear_cache",
     "cache",
+    "log_level",
     "help",
     "users",
     "stats",
@@ -47,6 +49,8 @@ COMMANDS = [
     "db",
 ]
 
+LEVEL_NAMES = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+
 HELP = {
     "stop": ("stop", "Остановить бота"),
     "restart": ("restart", "Перезапустить бота"),
@@ -56,6 +60,10 @@ HELP = {
     ),
     "clear_cache": ("clear_cache [all]", "Очистить устаревший кеш (all — весь)"),
     "cache": ("cache info | cache clear [all]", "Инфо о кеше и очистка"),
+    "log_level": (
+        "log_level [DEBUG|INFO|WARNING|ERROR|CRITICAL]",
+        "Уровень логирования (без аргумента — текущий)",
+    ),
     "help": ("help [команда]", "Подсказка по командам"),
     "users": ("users [N]", "Список пользователей (первые N, по умолчанию 20)"),
     "stats": ("stats", "Статистика по пользователям"),
@@ -125,6 +133,9 @@ async def console_worker(dp, bot):
 
         elif command_name == "cache":
             await cache_command(argument)
+
+        elif command_name == "log_level":
+            await log_level_command(argument)
 
         elif command_name == "help":
             print_help(argument)
@@ -200,6 +211,22 @@ async def cache_command(argument):
         return
 
     print("Использование: cache info | cache clear [all]")
+
+
+async def log_level_command(argument):
+    if argument is None:
+        app_level = logging.getLogger(APP_LOGGER_NAME).getEffectiveLevel()
+        print(f"Уровень логирования: {logging.getLevelName(app_level)}")
+        return
+
+    level_name = argument.strip().upper()
+
+    if level_name not in LEVEL_NAMES:
+        print(f"Ошибка: уровень должен быть один из {', '.join(LEVEL_NAMES)}")
+        return
+
+    set_log_level(level_name)
+    print(f"Уровень логирования изменён на: {level_name}")
 
 
 def print_help(argument=None):

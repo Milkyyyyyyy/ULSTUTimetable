@@ -496,18 +496,6 @@ def log_week_mapping(
 	if not labels:
 		return
 
-	weeks_info = " | ".join(
-		f"метка {label} → неделя {entry['week']} "
-		f"({entry['date_range'][0]}–{entry['date_range'][1]})"
-		for label, entry in zip(labels, schedule)
-	)
-
-	log(
-		"ulstu.schedule",
-		f"Соответствие меток недель API: {weeks_info}",
-		telegram_id,
-	)
-
 	if current_week is None:
 		return
 
