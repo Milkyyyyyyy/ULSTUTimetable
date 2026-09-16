@@ -173,6 +173,7 @@ async def time_handle(
             "Неверный формат.\n"
             "Попробуйте ещё раз"
         )
+        await message.delete()
         await delete_after(sent_message, 5)
         return
 
