@@ -16,8 +16,9 @@ from ulstu.schedule import (
     get_schedule,
     get_schedule_for_date,
 )
-from utils import build_delete_button
 from validator.group import normalize_group
+
+from .utils import build_delete_button
 
 # Жёсткий потолок: не больше N запросов в секунду
 MAX_REQUESTS_PER_SECOND = 10

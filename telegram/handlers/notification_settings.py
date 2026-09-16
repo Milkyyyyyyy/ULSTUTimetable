@@ -12,8 +12,9 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 from console_log import log
 from database import get_user, update_user
-from states.states import MainMenu, NotificationSettings
-from utils import delete_after, safe_edit_text
+
+from ..states.states import MainMenu, NotificationSettings
+from ..utils import delete_after, safe_edit_text
 
 router = Router()
 

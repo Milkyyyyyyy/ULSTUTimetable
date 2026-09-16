@@ -12,13 +12,14 @@ from aiogram.types import Message
 from console_log import log
 from database import create_user, update_user
 from encryption.encryption import encrypt_data
-from handlers.keyboards import schedule_parts_keyboard, build_subgroup_keyboard
-from handlers.main_menu import show_main_menu
-from states.states import Registration
 from ulstu.client import verify_ulstu_credentials
 from ulstu.schedule import is_group_valid_advanced
-from utils import delete_after
 from validator.group import normalize_group
+
+from .keyboards import schedule_parts_keyboard, build_subgroup_keyboard
+from .main_menu import show_main_menu
+from ..states.states import Registration
+from ..utils import delete_after
 
 router = Router()
 

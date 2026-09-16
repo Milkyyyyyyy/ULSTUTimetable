@@ -20,7 +20,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from console_log import log
 from database import get_user
-from states.states import MainMenu, ScheduleSelection
+
+from ..states.states import MainMenu, ScheduleSelection
+from ..utils import build_delete_button, delete_after, safe_edit_text
 from ulstu.schedule import (
     format_schedule_error,
     get_schedule,
@@ -28,7 +30,6 @@ from ulstu.schedule import (
     send_schedule,
 )
 from ulstu.schedule_image import generate_week_schedule_image
-from utils import build_delete_button, delete_after, safe_edit_text
 
 router = Router()
 

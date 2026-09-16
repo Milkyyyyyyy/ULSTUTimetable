@@ -22,13 +22,14 @@ from database import (
     get_user,
     get_users_with_notifications,
 )
-from notifications import get_users_for_notification, send_batch
-from states.fsm_manager import restore_main_menu_states
 from ulstu.schedule import (
     clear_old_cache,
     delete_all_cache,
     get_cache_info,
 )
+
+from .notifications import get_users_for_notification, send_batch
+from .states.fsm_manager import restore_main_menu_states
 
 COMMANDS = [
     "stop",

@@ -8,7 +8,8 @@ from aiogram import Bot, Dispatcher
 
 from console_log import log
 from database import get_registered_users
-from states.states import MainMenu
+
+from .states import MainMenu
 
 
 async def restore_main_menu_states(

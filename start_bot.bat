@@ -8,7 +8,7 @@ if not defined WT_SESSION (
 )
 
 :restart
-.venv\Scripts\python.exe bot.py
+.venv\Scripts\python.exe run.py
 
 if %ERRORLEVEL%==42 goto restart
 

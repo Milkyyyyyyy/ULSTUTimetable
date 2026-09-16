@@ -23,7 +23,7 @@ from ulstu.client import (
 	get_group_schedule_api,
 	get_schedule_groups,
 )
-from utils import build_delete_button
+from telegram.utils import build_delete_button
 from validator.group import normalize_group
 
 BASE_DIR = Path(__file__).resolve().parent.parent

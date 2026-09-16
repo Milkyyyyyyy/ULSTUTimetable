@@ -18,13 +18,14 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from console_log import log
 from database import get_user, update_user, delete_user
 from encryption.encryption import encrypt_data
-from handlers.keyboards import schedule_parts_keyboard, build_subgroup_keyboard
-from handlers.main_menu import show_main_menu
-from states.states import MainMenu, Settings
 from ulstu.schedule import is_group_valid_advanced
-from utils import delete_after
-from utils import safe_edit_text, safe_bot_edit_text
 from validator.group import normalize_group
+
+from .keyboards import schedule_parts_keyboard, build_subgroup_keyboard
+from .main_menu import show_main_menu
+from ..states.states import MainMenu, Settings
+from ..utils import delete_after
+from ..utils import safe_edit_text, safe_bot_edit_text
 
 router = Router()
 logger = logging.getLogger(__name__)
