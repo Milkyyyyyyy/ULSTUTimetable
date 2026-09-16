@@ -159,7 +159,7 @@ async def login(
 	if success:
 		log("ulstu.client", "Авторизация успешна", telegram_id)
 	else:
-		log("ulstu.client", "Авторизация не удалась", telegram_id)
+		log("ulstu.client", "Авторизация не удалась", telegram_id, level="WARNING")
 
 	return success
 
@@ -516,11 +516,11 @@ async def get_schedule_version(
 		}
 
 	except ULSTUAuthenticationError:
-		log("ulstu.client", "OIDC сессия истекла для version API", telegram_id)
+		log("ulstu.client", "OIDC сессия истекла для version API", telegram_id, level="WARNING")
 		raise
 
 	except (ULSTUAPIError, ULSTUResponseError) as e:
-		log("ulstu.client", f"Ошибка version API: {e}", telegram_id)
+		log("ulstu.client", f"Ошибка version API: {e}", telegram_id, level="ERROR")
 		return None
 
 	finally:
@@ -556,11 +556,11 @@ async def get_current_week(telegram_id: int) -> int | None:
 		)
 
 	except ULSTUAuthenticationError:
-		log("ulstu.client", "OIDC сессия истекла для current-week API", telegram_id)
+		log("ulstu.client", "OIDC сессия истекла для current-week API", telegram_id, level="WARNING")
 		raise
 
 	except (ULSTUAPIError, ULSTUResponseError) as e:
-		log("ulstu.client", f"Ошибка current-week API: {e}", telegram_id)
+		log("ulstu.client", f"Ошибка current-week API: {e}", telegram_id, level="ERROR")
 		return None
 
 	finally:
@@ -571,6 +571,7 @@ async def get_current_week(telegram_id: int) -> int | None:
 			"ulstu.client",
 			f"Неожиданный ответ current-week API: {type(resp).__name__}",
 			telegram_id,
+			level="WARNING",
 		)
 		return None
 

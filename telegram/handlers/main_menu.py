@@ -364,7 +364,7 @@ async def schedule_button_handler(
     if action == "select":
 
         if not schedule:
-            log("main_menu", "Расписание пустое при выборе даты", user_id)
+            log("main_menu", "Расписание пустое при выборе даты", user_id, level="WARNING")
             await callback.message.edit_text(
                 "❌ Расписание отсутствует.\n\n"
                 "💡 Возможно, оно ещё не опубликовано "
@@ -414,6 +414,7 @@ async def schedule_week_handler(
             "main_menu",
             "Нет schedule в FSM при переключении недели",
             callback.from_user.id,
+            level="WARNING",
         )
         await callback.message.edit_text(
             "Не удалось получить расписание. Откройте выбор даты заново."
@@ -481,6 +482,7 @@ async def schedule_day_handler(
             "main_menu",
             "Нет schedule в FSM при выборе дня",
             callback.from_user.id,
+            level="WARNING",
         )
         await callback.message.edit_text(
             "Не удалось получить расписание. Откройте выбор даты заново."
@@ -614,7 +616,7 @@ async def schedule_week_image_handler(
         return
 
     if not schedule:
-        log("main_menu", "Расписание пустое при запросе недели", user_id)
+        log("main_menu", "Расписание пустое при запросе недели", user_id, level="WARNING")
         await callback.message.answer(
             "❌ Расписание отсутствует.\n\n"
             "💡 Возможно, оно ещё не опубликовано "
@@ -713,6 +715,7 @@ async def get_schedule_for_user(callback: CallbackQuery, action: str) -> list[di
             "main_menu",
             f"Ошибка получения расписания ({action}): {error}",
             user_id,
+            level="ERROR",
         )
         sent_message = await callback.message.answer(format_schedule_error(error))
         await delete_after(sent_message, 8)

@@ -133,6 +133,7 @@ async def send_batch(bot: Bot, users: list, current_date: str):
                 f"{representative['group_name']}: "
                 f"{type(e).__name__}: {e}",
                 representative["telegram_id"],
+                level="ERROR",
             )
             continue
 
@@ -142,6 +143,7 @@ async def send_batch(bot: Bot, users: list, current_date: str):
                     "notifications",
                     "Расписание пустое — пропуск",
                     user["telegram_id"],
+                    level="WARNING",
                 )
             continue
 
@@ -222,4 +224,5 @@ async def send_tomorrow_schedule(
             f"Ошибка отправки: "
             f"{type(e).__name__}: {e}",
             telegram_id,
+            level="ERROR",
         )

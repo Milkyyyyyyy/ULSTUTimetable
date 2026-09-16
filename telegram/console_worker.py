@@ -379,6 +379,7 @@ async def broadcast_command(bot, argument):
                 "console",
                 f"Ошибка отправки сообщения: {type(e).__name__}: {e}",
                 telegram_id,
+                level="ERROR",
             )
 
         await asyncio.sleep(0.05)

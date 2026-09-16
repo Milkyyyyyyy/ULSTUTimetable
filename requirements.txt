@@ -18,8 +18,8 @@ idna==3.19
 magic-filter==1.0.12
 multidict==6.7.1
 pillow==12.3.0
+prompt_toolkit==3.0.53
 propcache==0.5.2
-prompt-toolkit==3.0.53
 pycparser==3.0
 pydantic==2.13.5
 pydantic_core==2.46.5
@@ -29,4 +29,5 @@ soupsieve==2.9.2
 SQLAlchemy==2.0.52
 typing-inspection==0.4.4
 typing_extensions==4.16.0
+wcwidth==0.8.3
 yarl==1.24.5

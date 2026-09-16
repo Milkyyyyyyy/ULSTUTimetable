@@ -242,7 +242,7 @@ async def login_handler(message: Message, state: FSMContext):
 	login = message.text
 
 	if not is_login_valid(login):
-		log("settings", f"Неверный логин: {login}", message.from_user.id)
+		log("settings", f"Неверный логин: {login}", message.from_user.id, level="WARNING")
 		await notify_invalid_input(message, "Неверный формат логина")
 		return
 
@@ -271,7 +271,7 @@ async def password_handler(message: Message, state: FSMContext):
 	raw_password = message.text
 
 	if not is_password_valid(raw_password):
-		log("settings", "Неверный формат пароля", message.from_user.id)
+		log("settings", "Неверный формат пароля", message.from_user.id, level="WARNING")
 		await notify_invalid_input(message, "Неверный формат пароля")
 		return
 
@@ -333,6 +333,7 @@ async def group_handler(message: Message, state: FSMContext):
 			"settings",
 			f"Группа не найдена: {group_name}",
 			message.from_user.id,
+			level="WARNING",
 		)
 		await notify_invalid_input(message, f"Группа {group_name} не найдена в выбранном вам факультете")
 		return
@@ -413,6 +414,7 @@ async def save_changes(callback: CallbackQuery, state: FSMContext):
 				"settings",
 				"Не удалось сохранить изменения",
 				callback.from_user.id,
+				level="ERROR",
 			)
 			await callback.answer(
 				"Не удалось сохранить изменения.\nПопробуйте ещё раз позже."

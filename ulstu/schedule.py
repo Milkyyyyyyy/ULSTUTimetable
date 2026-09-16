@@ -45,7 +45,8 @@ async def cache_cleanup_loop():
         except Exception as e:
             log(
                 "clear_old_cache",
-                f"Ошибка фоновой очистки: {e}"
+                f"Ошибка фоновой очистки: {e}",
+                level="ERROR",
             )
 
         await asyncio.sleep(
@@ -97,7 +98,8 @@ def clear_old_cache():
             except OSError as e:
                 log(
                     "clear_old_cache",
-                    f"Не удалось удалить {json_path}: {e}"
+                    f"Не удалось удалить {json_path}: {e}",
+                    level="WARNING",
                 )
 
             else:
@@ -122,7 +124,8 @@ def clear_old_cache():
             except OSError as e:
                 log(
                     "clear_old_cache",
-                    f"Не удалось удалить {json_path}: {e}"
+                    f"Не удалось удалить {json_path}: {e}",
+                    level="WARNING",
                 )
 
             else:
@@ -159,7 +162,8 @@ def clear_old_cache():
             except OSError as e:
                 log(
                     "clear_old_cache",
-                    f"Не удалось удалить {json_path}: {e}"
+                    f"Не удалось удалить {json_path}: {e}",
+                    level="WARNING",
                 )
 
             else:
@@ -520,6 +524,7 @@ def log_week_mapping(
 			f"текущей недели при 0-based нумерации). Проверьте нумерацию "
 			f"недель time.ulstu.ru.",
 			telegram_id,
+			level="WARNING",
 		)
 
 

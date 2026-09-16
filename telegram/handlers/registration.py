@@ -87,6 +87,7 @@ async def password_handler(
             "registration",
             f"Ошибка авторизации: {e}",
             telegram_id,
+            level="ERROR",
         )
 
         sent_message = await message.answer(
@@ -162,6 +163,7 @@ async def group_handler(message: Message, state: FSMContext):
             "registration",
             f"Неверный формат группы: {group}",
             message.from_user.id,
+            level="WARNING",
         )
         sent_message = await message.answer(
             "<b>Неверный формат группы</b>\n"
