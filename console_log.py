@@ -99,6 +99,23 @@ class _ColorFormatter(logging.Formatter):
         return line
 
 
+class _ConsoleHandler(logging.Handler):
+    """Пишет в текущий sys.stdout (учитывает patch_stdout в console_worker).
+
+    Обычный logging.StreamHandler захватывает поток один раз при создании,
+    поэтому вывод в обход patch_stdout ломал бы строку ввода промпта.
+    Здесь поток берётся в момент записи — и логи корректно встают над строкой
+    ввода, не перемешиваясь с ней.
+    """
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            sys.stdout.write(self.format(record) + "\n")
+            sys.stdout.flush()
+        except Exception:
+            self.handleError(record)
+
+
 class _DailyFileHandler(logging.Handler):
     """Пишет в файл logs/YYYY-MM-DD.log; каждый день — новый файл."""
 
@@ -158,7 +175,7 @@ def setup_logging() -> None:
     root = logging.getLogger()
     root.setLevel(logging.WARNING)
 
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = _ConsoleHandler()
     console_handler.setFormatter(_ColorFormatter(use_colors=_use_colors()))
 
     file_handler = _DailyFileHandler(LOGS_DIR)

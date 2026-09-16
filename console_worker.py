@@ -13,6 +13,7 @@ from datetime import datetime
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.patch_stdout import patch_stdout
 
 from console_log import APP_LOGGER_NAME, LOGS_DIR, log, set_log_level
 from database import (
@@ -88,6 +89,14 @@ session = PromptSession(completer=completer)
 
 
 async def console_worker(dp, bot):
+    # patch_stdout держит строку ввода отдельно внизу терминала: логи
+    # (и любые print) встают над ней, а не ломают вводимую команду.
+    # raw=True — чтобы сохранить ANSI-цвета из console_log.
+    with patch_stdout(raw=True):
+        await _console_loop(dp, bot)
+
+
+async def _console_loop(dp, bot):
     while True:
         try:
             command = await session.prompt_async("> ")
