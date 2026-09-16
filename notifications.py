@@ -17,6 +17,11 @@ from ulstu.schedule import (
 )
 from utils import build_delete_button
 
+# Лимит одновременных отправок (защита от rate-limit Telegram)
+MAX_CONCURRENT_SENDS = 20
+
+concurrency_gate = asyncio.Semaphore(MAX_CONCURRENT_SENDS)
+
 
 async def notification_worker(bot: Bot):
     """Бесконечный цикл: раз в минуту проверяет, комему отправить расписание."""
@@ -33,74 +38,84 @@ async def notification_worker(bot: Bot):
             current_date,
         )
 
-        for user in users:
-            try:
-                asyncio.run(send_tomorrow_schedule(bot, user))
+        if users:
+            tasks = [
+                send_tomorrow_schedule(bot, user, current_date)
+                for user in users
+            ]
 
-                await update_user(
-                    user["telegram_id"],
-                    notification_last_sent=current_date,
-                )
-
-                log(
-                    "notifications",
-                    f"Оповещение отправлено "
-                    f"(scheduled={user['notification_time']})",
-                    user["telegram_id"],
-                )
-                await asyncio.sleep(0.5)
-
-            except Exception as e:
-                log(
-                    "notifications",
-                    f"Ошибка отправки: "
-                    f"{type(e).__name__}: {e}",
-                    user["telegram_id"],
-                )
+            await asyncio.gather(*tasks)
 
         delay = 60 - now.second - now.microsecond / 1_000_000
 
         await asyncio.sleep(delay)
 
 
-async def send_tomorrow_schedule(bot: Bot, user: dict):
+async def send_tomorrow_schedule(
+    bot: Bot,
+    user: dict,
+    current_date: str,
+):
     """Формирует расписание на завтра и отправляет пользователю с кнопкой «Удалить»."""
     telegram_id = user["telegram_id"]
-    log("notifications", "Отправка расписания на завтра", telegram_id)
 
-    schedule = await get_schedule(telegram_id)
+    async with concurrency_gate:
+        try:
+            log("notifications", "Отправка расписания на завтра", telegram_id)
 
-    if not schedule:
-        log(
-            "notifications",
-            "Расписание пустое — пропуск",
-            telegram_id,
-        )
-        return
+            schedule = await get_schedule(telegram_id)
 
-    tomorrow = date.today() + timedelta(days=1)
+            if not schedule:
+                log(
+                    "notifications",
+                    "Расписание пустое — пропуск",
+                    telegram_id,
+                )
+                return
 
-    tomorrow_schedule = get_schedule_for_date(
-        schedule,
-        tomorrow,
-    )
+            tomorrow = date.today() + timedelta(days=1)
 
-    # Создаём пустой день, если на завтра занятий нет
-    if tomorrow_schedule is None:
-        tomorrow_schedule = {
-            "day": tomorrow.strftime("%d.%m.%Y"),
-            "date": tomorrow.strftime("%d.%m.%Y"),
-            "lessons": [],
-        }
+            tomorrow_schedule = get_schedule_for_date(
+                schedule,
+                tomorrow,
+            )
 
-    message_text = await format_day_schedule(
-        tomorrow_schedule,
-        telegram_id,
-    )
+            # Создаём пустой день, если на завтра занятий нет
+            if tomorrow_schedule is None:
+                tomorrow_schedule = {
+                    "day": tomorrow.strftime("%d.%m.%Y"),
+                    "date": tomorrow.strftime("%d.%m.%Y"),
+                    "lessons": [],
+                }
 
-    await bot.send_message(
-        chat_id=telegram_id,
-        text=message_text,
-        parse_mode="HTML",
-        reply_markup=build_delete_button(),
-    )
+            message_text = await format_day_schedule(
+                tomorrow_schedule,
+                telegram_id,
+            )
+
+            await bot.send_message(
+                chat_id=telegram_id,
+                text=message_text,
+                parse_mode="HTML",
+                reply_markup=build_delete_button(),
+            )
+
+            await update_user(
+                telegram_id,
+                notification_last_sent=current_date,
+            )
+
+            log(
+                "notifications",
+                f"Оповещение отправлено "
+                f"(scheduled={user['notification_time']})",
+                telegram_id,
+            )
+
+        except Exception as e:
+            log(
+                "notifications",
+                f"Ошибка отправки: "
+                f"{type(e).__name__}: {e}",
+                telegram_id,
+            )
