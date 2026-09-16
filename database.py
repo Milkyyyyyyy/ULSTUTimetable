@@ -241,3 +241,62 @@ async def get_registered_users():
 		users = await cursor.fetchall()
 
 	return [dict(user) for user in users]
+
+
+async def get_all_users():
+	"""Возвращает всех пользователей (полные записи) для админ-консоли."""
+	async with aiosqlite.connect(DB_PATH) as db:
+		db.row_factory = aiosqlite.Row
+
+		cursor = await db.execute(
+			"""
+			SELECT *
+			FROM users
+			ORDER BY telegram_id
+			"""
+		)
+
+		users = await cursor.fetchall()
+
+	return [dict(user) for user in users]
+
+
+async def get_stats():
+	"""Сводная статистика по пользователям для админ-консоли."""
+	async with aiosqlite.connect(DB_PATH) as db:
+		db.row_factory = aiosqlite.Row
+
+		cursor = await db.execute(
+			"""
+			SELECT
+				COUNT(*) AS total,
+				COALESCE(SUM(notification_enabled = 1), 0) AS notification_enabled,
+				COALESCE(
+					SUM(ulstu_login IS NOT NULL AND ulstu_login != ''),
+					0
+				) AS with_login
+			FROM users
+			"""
+		)
+
+		row = await cursor.fetchone()
+
+	return dict(row)
+
+
+async def get_users_with_notifications():
+	"""Пользователи с включёнными уведомлениями (для принудительной рассылки)."""
+	async with aiosqlite.connect(DB_PATH) as db:
+		db.row_factory = aiosqlite.Row
+
+		cursor = await db.execute(
+			"""
+			SELECT *
+			FROM users
+			WHERE notification_enabled = 1
+			"""
+		)
+
+		users = await cursor.fetchall()
+
+	return [dict(user) for user in users]

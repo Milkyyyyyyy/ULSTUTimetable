@@ -56,6 +56,21 @@ def delete_all_cache():
     for json_path in CACHE_DIR.rglob("*.json"):
         json_path.unlink();
 
+def get_cache_info():
+    """Возвращает число файлов и размер кеша в байтах."""
+    total_size = 0
+    count = 0
+
+    for json_path in CACHE_DIR.rglob("*.json"):
+        try:
+            total_size += json_path.stat().st_size
+            count += 1
+
+        except OSError:
+            continue
+
+    return count, total_size
+
 def clear_old_cache():
     log("clear_old_cache", "Очистка устаревшего кеша...")
 
