@@ -22,12 +22,11 @@ from console_log import log
 from database import get_user
 
 from ..states.states import MainMenu, ScheduleSelection
-from ..utils import build_delete_button, delete_after, safe_edit_text
+from ..utils import build_delete_button, delete_after, safe_edit_text, send_schedule
 from ulstu.schedule import (
     format_schedule_error,
     get_schedule,
     get_schedule_for_date,
-    send_schedule,
 )
 from ulstu.schedule_image import generate_week_schedule_image
 

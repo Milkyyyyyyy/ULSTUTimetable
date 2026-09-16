@@ -11,7 +11,6 @@ from datetime import date, datetime, timedelta, timezone
 from html import escape
 from pathlib import Path
 
-from aiogram.types import Message
 from bs4 import BeautifulSoup
 
 from console_log import log
@@ -23,7 +22,6 @@ from ulstu.client import (
 	get_group_schedule_api,
 	get_schedule_groups,
 )
-from telegram.utils import build_delete_button
 from validator.group import normalize_group
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -496,6 +494,7 @@ def log_week_mapping(
 	if not labels:
 		return
 
+
 	if current_week is None:
 		return
 
@@ -740,23 +739,6 @@ async def format_day_schedule(
             message += "<i>Пар нет.</i>"
 
     return message
-
-
-async def send_schedule(
-        message: Message,
-        schedule: dict,
-):
-    """Отправляет расписание на день с кнопкой «Удалить»."""
-    message_text = await format_day_schedule(
-        schedule,
-        message.chat.id,
-    )
-
-    await message.answer(
-        text=message_text,
-        parse_mode="HTML",
-        reply_markup=build_delete_button(),
-    )
 
 
 def get_groups_cache_path(schedule_part: int) -> Path:

@@ -12,6 +12,8 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 from console_log import log
 
+from ulstu.schedule import format_day_schedule
+
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -79,6 +81,23 @@ def build_delete_button() -> InlineKeyboardMarkup:
 
 @router.callback_query(F.data == "botUtilsDelete")
 async def delete_on_button(callback: CallbackQuery):
-	await callback.answer()
-	log("utils", "Удаление сообщения по кнопке", callback.from_user.id)
-	await callback.message.delete()
+    await callback.answer()
+    log("utils", "Удаление сообщения по кнопке", callback.from_user.id)
+    await callback.message.delete()
+
+
+async def send_schedule(
+        message: Message,
+        schedule: dict,
+):
+    """Отправляет расписание на день с кнопкой «Удалить»."""
+    message_text = await format_day_schedule(
+        schedule,
+        message.chat.id,
+    )
+
+    await message.answer(
+        text=message_text,
+        parse_mode="HTML",
+        reply_markup=build_delete_button(),
+    )
