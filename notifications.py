@@ -35,7 +35,7 @@ async def notification_worker(bot: Bot):
 
         for user in users:
             try:
-                await send_tomorrow_schedule(bot, user)
+                asyncio.run(send_tomorrow_schedule(bot, user))
 
                 await update_user(
                     user["telegram_id"],
