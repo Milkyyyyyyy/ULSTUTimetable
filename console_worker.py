@@ -22,6 +22,10 @@ completer = WordCompleter(
     ignore_case=True,
 )
 
+class RestartRequested(BaseException):
+    """Исключение для перезапуска бота вместо выхода с кодом 42."""
+
+
 session = PromptSession(completer=completer)
 
 
@@ -47,7 +51,7 @@ async def console_worker(dp, bot):
         elif command_name == "restart":
             log("console", "Получена команда restart")
             await stop_bot(dp)
-            raise SystemExit(42)
+            raise RestartRequested
         elif command_name == "clear_cache":
             if argument == "all":
                 delete_all_cache();

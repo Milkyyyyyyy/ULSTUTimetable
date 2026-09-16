@@ -5,6 +5,7 @@
 
 import asyncio
 import os
+import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
@@ -14,6 +15,7 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from console_log import log
+from console_worker import RestartRequested
 from console_worker import console_worker
 from database import get_user, init_db
 from handlers.main_menu import router as main_menu_router
@@ -116,4 +118,12 @@ async def stop_bot(bot, notification_task):
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except RestartRequested:
+        print("Перезапуск бота...")
+        os.execl(
+            sys.executable,
+            sys.executable,
+            os.path.abspath(__file__),
+        )
