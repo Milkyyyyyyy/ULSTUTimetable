@@ -3,13 +3,11 @@
 недели и отправка изображения расписания.
 """
 
-import asyncio
 import random
 from datetime import UTC, date, datetime, timedelta
 from time import timezone
 
 from aiogram import F, Router
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     BufferedInputFile,
@@ -82,68 +80,6 @@ def build_empty_day(target_date: date) -> dict:
         "date": target_date.strftime("%d.%m.%Y"),
         "lessons": [],
     }
-
-SPINNER_FRAMES = ("⠋", "⠙", "⠹", "⠸", "⠼")
-SPINNER_INTERVAL = 0.5
-
-
-async def _start_loading(callback: CallbackQuery) -> tuple[Message, asyncio.Task]:
-    """Отправляет «Загружаю расписание...» и запускает анимацию спиннера.
-
-    Возвращает (сообщение, задача анимации). Остановите задачу через
-    _stop_animation перед заменой сообщения итоговым результатом.
-    """
-    loading_message = await callback.message.answer(
-        text=f"{SPINNER_FRAMES[0]} <i>Загружаю расписание...</i>",
-        parse_mode="HTML",
-    )
-
-    animation_task = asyncio.create_task(
-        _animate_loading(loading_message)
-    )
-
-    return loading_message, animation_task
-
-
-async def _animate_loading(message: Message):
-    """Крутит спиннер в сообщении, пока задачу не остановят."""
-    frame_index = 0
-
-    while True:
-        frame = SPINNER_FRAMES[
-            frame_index % len(SPINNER_FRAMES)
-        ]
-
-        try:
-            await message.edit_text(
-                text=f"{frame} <i>Загружаю расписание...</i>",
-                parse_mode="HTML",
-            )
-
-        except TelegramBadRequest:
-            break
-
-        frame_index += 1
-        await asyncio.sleep(SPINNER_INTERVAL)
-
-
-async def _stop_animation(animation_task: asyncio.Task | None):
-    """Останавливает анимацию спиннера, не выбрасывая исключений наружу."""
-    if animation_task is None:
-        return
-
-    if not animation_task.done():
-        animation_task.cancel()
-
-    try:
-        await animation_task
-
-    except asyncio.CancelledError:
-        pass
-
-    except Exception:
-        pass
-
 
 async def get_welcome_message() -> str:
     hour = datetime.now().hour
@@ -398,12 +334,14 @@ async def schedule_button_handler(
 
     # Сегодня/завтра: сразу показываем загрузку и заменяем её
     # расписанием либо сообщением об ошибке.
-    loading_message, animation_task = await _start_loading(callback)
+    loading_message = await callback.message.answer(
+        text="<i>Загружаю расписание...</i>",
+        parse_mode="HTML"
+    )
 
     schedule, error_text = await get_schedule_for_user(callback, action)
 
     if error_text is not None:
-        await _stop_animation(animation_task)
         await loading_message.edit_text(error_text)
         await delete_after(loading_message, 8)
         return
@@ -416,7 +354,6 @@ async def schedule_button_handler(
         )
         log("main_menu", f"Отправка расписания на {today}", user_id)
 
-        await _stop_animation(animation_task)
         await send_schedule(
             callback.message,
             schedule_date or build_empty_day(today),
@@ -433,7 +370,6 @@ async def schedule_button_handler(
         )
         log("main_menu", f"Отправка расписания на {tomorrow}", user_id)
 
-        await _stop_animation(animation_task)
         await send_schedule(
             callback.message,
             schedule_date or build_empty_day(tomorrow),
@@ -615,8 +551,10 @@ async def schedule_day_handler(
         ScheduleSelection.selecting_day
     )
 
-    loading_message, animation_task = await _start_loading(callback)
-    await _stop_animation(animation_task)
+    loading_message = await callback.message.answer(
+        text="<i>Загружаю расписание...</i>",
+        parse_mode="HTML"
+    )
 
     await send_schedule(
         callback.message,
@@ -714,19 +652,20 @@ async def schedule_week_image_handler(
     user_id = callback.from_user.id
     log("main_menu", f"Запрос картинки недели: {action}", user_id)
 
-    schedule_message, animation_task = await _start_loading(callback)
+    schedule_message = await callback.message.answer(
+        text="<i>Загружаю расписание...</i>",
+        parse_mode="HTML"
+    )
 
     schedule, error_text = await get_schedule_for_user(callback, f"week:{action}")
 
     if error_text is not None:
-        await _stop_animation(animation_task)
         await schedule_message.edit_text(error_text)
         await delete_after(schedule_message, 8)
         return
 
     if not schedule:
         log("main_menu", "Расписание пустое при запросе недели", user_id, level="WARNING")
-        await _stop_animation(animation_task)
         await schedule_message.edit_text(
             "❌ Расписание отсутствует.\n\n"
             "💡 Возможно, оно ещё не опубликовано "
@@ -742,7 +681,6 @@ async def schedule_week_image_handler(
     )
 
     if current_week_index is None:
-        await _stop_animation(animation_task)
         await schedule_message.edit_text(
             "Не удалось определить текущую неделю "
             "в расписании."
@@ -764,14 +702,12 @@ async def schedule_week_image_handler(
     if week_index >= len(schedule):
 
         if action == "next":
-            await _stop_animation(animation_task)
             await schedule_message.edit_text(
                 "Следующей недели в расписании нет.\n"
                 "Попробуйте позже."
             )
             await delete_after(schedule_message, 8)
 
-        await _stop_animation(animation_task)
         return
 
     
@@ -818,7 +754,6 @@ async def schedule_week_image_handler(
     #     parse_mode="HTML",
     #     reply_markup=build_delete_button(),
     # )
-    await _stop_animation(animation_task)
     await schedule_message.edit_media(
         media=InputMediaPhoto(
             media=photo,
