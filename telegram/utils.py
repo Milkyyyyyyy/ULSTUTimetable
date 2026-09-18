@@ -89,12 +89,25 @@ async def delete_on_button(callback: CallbackQuery):
 async def send_schedule(
         message: Message,
         schedule: dict,
+        edit_message: Message | None = None,
 ):
-    """Отправляет расписание на день с кнопкой «Удалить»."""
+    """Отправляет или редактирует расписание на день.
+
+    Если задано edit_message — расписание выводится в этом сообщении
+    вместо отправки нового (см. замену временного «Загружаю...»).
+    """
     message_text = await format_day_schedule(
         schedule,
         message.chat.id,
     )
+
+    if edit_message is not None:
+        await edit_message.edit_text(
+            text=message_text,
+            parse_mode="HTML",
+            reply_markup=build_delete_button(),
+        )
+        return
 
     await message.answer(
         text=message_text,

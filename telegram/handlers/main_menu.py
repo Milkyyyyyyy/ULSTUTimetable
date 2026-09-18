@@ -326,18 +326,24 @@ async def schedule_button_handler(
     action = callback.data.split(":", 1)[1]
     user_id = callback.from_user.id
 
-    schedule_message = await callback.message.answer(
+    # «Расписание на дату»: сначала выбираем день, а уведомление
+    # о загрузке показываем уже при итоговом выводе расписания.
+    if action == "select":
+        await open_day_selection(callback, state)
+        return
+
+    # Сегодня/завтра: сразу показываем загрузку и заменяем её
+    # расписанием либо сообщением об ошибке.
+    loading_message = await callback.message.answer(
         text="<i>Загружаю расписание...</i>",
         parse_mode="HTML"
     )
 
-    schedule = await get_schedule_for_user(callback, action)
+    schedule, error_text = await get_schedule_for_user(callback, action)
 
-    if schedule is None:
-        await schedule_message.edit_text(
-            text="Не удалось загрузить расписание...\nПовторите попытку позже"
-        )
-        await delete_after(schedule_message, 8)
+    if error_text is not None:
+        await loading_message.edit_text(error_text)
+        await delete_after(loading_message, 8)
         return
 
     if action == "today":
@@ -351,8 +357,8 @@ async def schedule_button_handler(
         await send_schedule(
             callback.message,
             schedule_date or build_empty_day(today),
+            edit_message=loading_message,
         )
-
         return
 
     if action == "tomorrow":
@@ -367,43 +373,62 @@ async def schedule_button_handler(
         await send_schedule(
             callback.message,
             schedule_date or build_empty_day(tomorrow),
+            edit_message=loading_message,
         )
-
         return
 
-    if action == "select":
 
-        if not schedule:
-            log("main_menu", "Расписание пустое при выборе даты", user_id, level="WARNING")
-            await schedule_message.edit_text(
-                "❌ Расписание отсутствует.\n\n"
-                "💡 Возможно, оно ещё не опубликовано "
-                "на сайте УлГТУ. Попробуйте позже."
-            )
-            await delete_after(schedule_message, 8)
-            return
+async def open_day_selection(
+        callback: CallbackQuery,
+        state: FSMContext,
+):
+    """Загружает расписание и открывает клавиатуру выбора дня."""
+    user_id = callback.from_user.id
 
-        # Сохраняем schedule в FSM, чтобы при переключении недель не запрашивать его заново
-        await state.update_data(
-            schedule=schedule,
-            week_index=0,
+    schedule, error_text = await get_schedule_for_user(callback, "select")
+
+    if error_text is not None:
+        error_message = await callback.message.answer(error_text)
+        await delete_after(error_message, 8)
+        return
+
+    if not schedule:
+        log(
+            "main_menu",
+            "Расписание пустое при выборе даты",
+            user_id,
+            level="WARNING",
         )
-
-        await state.set_state(
-            ScheduleSelection.selecting_day
+        error_message = await callback.message.answer(
+            "❌ Расписание отсутствует.\n\n"
+            "💡 Возможно, оно ещё не опубликовано "
+            "на сайте УлГТУ. Попробуйте позже."
         )
+        await delete_after(error_message, 8)
+        return
 
-        keyboard = build_schedule_keyboard(
-            schedule,
-            week_index=0,
-        )
+    # Сохраняем schedule в FSM, чтобы при переключении недель
+    # не запрашивать его заново
+    await state.update_data(
+        schedule=schedule,
+        week_index=0,
+    )
 
-        log("main_menu", "Открыт выбор дня", user_id)
-        await callback.message.edit_text(
-            text="📅 <b>Выберите день:</b>",
-            parse_mode="HTML",
-            reply_markup=keyboard,
-        )
+    await state.set_state(
+        ScheduleSelection.selecting_day
+    )
+
+    keyboard = build_schedule_keyboard(
+        schedule,
+        week_index=0,
+    )
+
+    log("main_menu", "Открыт выбор дня", user_id)
+    await callback.message.edit_text(
+        text="📅 <b>Выберите день:</b>",
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )
 
 
 # Переключение недель
@@ -526,9 +551,15 @@ async def schedule_day_handler(
         ScheduleSelection.selecting_day
     )
 
+    loading_message = await callback.message.answer(
+        text="<i>Загружаю расписание...</i>",
+        parse_mode="HTML"
+    )
+
     await send_schedule(
         callback.message,
         day_schedule,
+        edit_message=loading_message,
     )
 
 
@@ -626,12 +657,10 @@ async def schedule_week_image_handler(
         parse_mode="HTML"
     )
 
-    schedule = await get_schedule_for_user(callback, f"week:{action}")
+    schedule, error_text = await get_schedule_for_user(callback, f"week:{action}")
 
-    if schedule is None:
-        await schedule_message.edit_text(
-            "Не удалось загрузить расписание...\nПопробуйте позже"
-        )
+    if error_text is not None:
+        await schedule_message.edit_text(error_text)
         await delete_after(schedule_message, 8)
         return
 
@@ -735,13 +764,20 @@ async def schedule_week_image_handler(
     )
 
 
-async def get_schedule_for_user(callback: CallbackQuery, action: str) -> list[dict] | None:
-    """Загружает расписание; при ошибке отправляет пользователю сообщение и возвращает None."""
+async def get_schedule_for_user(
+        callback: CallbackQuery,
+        action: str,
+) -> tuple[list[dict] | None, str | None]:
+    """Загружает расписание; возвращает (расписание, текст_ошибки).
+
+    При успехе — (schedule, None), при ошибке — (None, error_text),
+    где error_text уже готов к показу пользователю.
+    """
     user_id = callback.from_user.id
     log("main_menu", f"Запрос расписания: {action}", user_id)
 
     try:
-        return await get_schedule(user_id)
+        schedule = await get_schedule(user_id)
     except Exception as error:
         log(
             "main_menu",
@@ -749,6 +785,6 @@ async def get_schedule_for_user(callback: CallbackQuery, action: str) -> list[di
             user_id,
             level="ERROR",
         )
-        sent_message = await callback.message.answer(format_schedule_error(error))
-        await delete_after(sent_message, 8)
-        return None
+        return None, format_schedule_error(error)
+
+    return schedule, None
