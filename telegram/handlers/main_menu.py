@@ -16,6 +16,8 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     Message,
 )
+from aiogram.types.input_media_photo import InputMediaPhoto
+from aiogram.types.input_media_union import InputMediaUnion
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from console_log import log
@@ -324,9 +326,18 @@ async def schedule_button_handler(
     action = callback.data.split(":", 1)[1]
     user_id = callback.from_user.id
 
+    schedule_message = await callback.message.answer(
+        text="<i>Загружаю расписание...</i>",
+        parse_mode="HTML"
+    )
+
     schedule = await get_schedule_for_user(callback, action)
 
     if schedule is None:
+        await schedule_message.edit_text(
+            text="Не удалось загрузить расписание...\nПовторите попытку позже"
+        )
+        await delete_after(schedule_message, 8)
         return
 
     if action == "today":
@@ -364,11 +375,12 @@ async def schedule_button_handler(
 
         if not schedule:
             log("main_menu", "Расписание пустое при выборе даты", user_id, level="WARNING")
-            await callback.message.edit_text(
+            await schedule_message.edit_text(
                 "❌ Расписание отсутствует.\n\n"
                 "💡 Возможно, оно ещё не опубликовано "
                 "на сайте УлГТУ. Попробуйте позже."
             )
+            await delete_after(schedule_message, 8)
             return
 
         # Сохраняем schedule в FSM, чтобы при переключении недель не запрашивать его заново
@@ -609,18 +621,28 @@ async def schedule_week_image_handler(
     user_id = callback.from_user.id
     log("main_menu", f"Запрос картинки недели: {action}", user_id)
 
+    schedule_message = await callback.message.answer(
+        text="<i>Загружаю расписание...</i>",
+        parse_mode="HTML"
+    )
+
     schedule = await get_schedule_for_user(callback, f"week:{action}")
 
     if schedule is None:
+        await schedule_message.edit_text(
+            "Не удалось загрузить расписание...\nПопробуйте позже"
+        )
+        await delete_after(schedule_message, 8)
         return
 
     if not schedule:
         log("main_menu", "Расписание пустое при запросе недели", user_id, level="WARNING")
-        await callback.message.answer(
+        await schedule_message.edit_text(
             "❌ Расписание отсутствует.\n\n"
             "💡 Возможно, оно ещё не опубликовано "
             "на сайте УлГТУ. Попробуйте позже."
         )
+        await delete_after(schedule_message, 8)
         return
 
     # Находим текущую неделю
@@ -630,12 +652,13 @@ async def schedule_week_image_handler(
     )
 
     if current_week_index is None:
+        await schedule_message.edit_text(
+            "Не удалось определить текущую неделю "
+            "в расписании."
+        )
         await delete_after(
-            await callback.message.answer(
-                "Не удалось определить текущую неделю "
-                "в расписании."
-            ),
-            delay=5
+            schedule_message,
+            delay=8
         )
         return
 
@@ -650,14 +673,15 @@ async def schedule_week_image_handler(
     if week_index >= len(schedule):
 
         if action == "next":
-            sent_message = await callback.message.answer(
+            await schedule_message.edit_text(
                 "Следующей недели в расписании нет.\n"
                 "Попробуйте позже."
             )
-            await delete_after(sent_message, 8)
+            await delete_after(schedule_message, 8)
 
         return
 
+    
     week = schedule[week_index]
     date_range = week.get("date_range") or ()
     start_date = date_range[0] if len(date_range) > 0 else ""
@@ -694,11 +718,20 @@ async def schedule_week_image_handler(
         f"Отправка картинки недели {week['week']}",
         user_id,
     )
-    await callback.message.answer_photo(
-        photo=photo,
-        caption=caption,
-        parse_mode="HTML",
-        reply_markup=build_delete_button(),
+    # await waiting_message.delete()
+    # await callback.message.answer_photo(
+    #     photo=photo,
+    #     caption=caption,
+    #     parse_mode="HTML",
+    #     reply_markup=build_delete_button(),
+    # )
+    await schedule_message.edit_media(
+        media=InputMediaPhoto(
+            media=photo,
+            caption=caption,
+            parse_mode="HTML"
+        ),
+        reply_markup=build_delete_button()
     )
 
 
