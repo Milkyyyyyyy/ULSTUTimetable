@@ -6,7 +6,6 @@
 from datetime import datetime
 
 from aiogram import Router, F
-from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
@@ -15,6 +14,7 @@ from database import get_user, update_user
 
 from ..states.states import MainMenu, NotificationSettings
 from ..utils import delete_after, safe_edit_text
+from .main_menu import MENU_NOTIFY
 
 router = Router()
 
@@ -57,38 +57,61 @@ async def build_notification_settings_button(user) -> InlineKeyboardMarkup:
     )
 
 
-@router.callback_query(
-    StateFilter(
-        MainMenu.main_menu,
-        NotificationSettings.notification_setting
-    ),
-    F.data.in_({
-        "notification_settings:open",
-        "notification_settings:toggle",
-    }),
+@router.message(
+    MainMenu.main_menu,
+    F.text == MENU_NOTIFY,
 )
-async def notification_settings_menu_button_handler(callback: CallbackQuery, state: FSMContext):
+async def open_notification_settings(message: Message, state: FSMContext):
+    telegram_id = message.from_user.id
+    log("notification_settings", "Открытие настроек оповещений", telegram_id)
+
+    user = await get_user(telegram_id)
+    await state.set_state(NotificationSettings.notification_setting)
+
+    await message.answer(
+        build_notification_settings_text(user),
+        reply_markup=await build_notification_settings_button(user),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(
+    NotificationSettings.notification_setting,
+    F.data == "notification_settings:toggle",
+)
+async def notification_settings_toggle_handler(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
     telegram_id = callback.from_user.id
     user = await get_user(telegram_id)
-    action = callback.data.split(":")[1]
-    log("notification_settings", f"Настройки оповещений: {action}", telegram_id)
 
-    if action == "toggle":
-        enabled = not bool(user['notification_enabled'])
-        log(
-            "notification_settings",
-            f"Автооповещение -> {'ВКЛ' if enabled else 'ВЫКЛ'}",
-            telegram_id,
-        )
-        await update_user(
-            telegram_id,
-            notification_enabled=enabled
-        )
-        user = await get_user(telegram_id)
+    enabled = not bool(user['notification_enabled'])
+    log(
+        "notification_settings",
+        f"Автооповещение -> {'ВКЛ' if enabled else 'ВЫКЛ'}",
+        telegram_id,
+    )
+    await update_user(
+        telegram_id,
+        notification_enabled=enabled
+    )
+    user = await get_user(telegram_id)
 
     await render_notification_settings_menu(callback.message, state, user)
+
+
+def build_notification_settings_text(user: dict) -> str:
+    message_text = "Каждый день в указанное время бот присылает расписание на завтра.\n\n"
+
+    if user['notification_time'] is None or user['notification_time'] == "":
+        message_text += "Укажите время"
+    else:
+        message_text += (
+            "<b>Время отправки:</b>\n"
+            f"🕒{user['notification_time']}"
+        )
+
+    return message_text
 
 
 async def render_notification_settings_menu(message: Message, state: FSMContext, user: dict | None = None):
@@ -99,16 +122,9 @@ async def render_notification_settings_menu(message: Message, state: FSMContext,
 
     await state.set_state(NotificationSettings.notification_setting)
 
-    message_text = "Каждый день в указанное время бот присылает расписание на завтра.\n\n"
-
-    if user['notification_time'] is None or user['notification_time'] == "":
-        message_text += "Укажите время"
-    else:
-        message_text += ("<b>Время отправки:</b>\n"
-                        f"🕒{user['notification_time']}")
     await safe_edit_text(
         message,
-        message_text,
+        build_notification_settings_text(user),
         reply_markup=await build_notification_settings_button(user),
         parse_mode="HTML"
     )

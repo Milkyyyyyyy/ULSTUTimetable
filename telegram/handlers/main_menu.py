@@ -8,23 +8,26 @@ from datetime import UTC, date, datetime, timedelta
 from time import timezone
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     BufferedInputFile,
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    KeyboardButton,
     Message,
+    ReplyKeyboardMarkup,
 )
 from aiogram.types.input_media_photo import InputMediaPhoto
 from aiogram.types.input_media_union import InputMediaUnion
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 from console_log import log
 from database import get_user
 
 from ..states.states import MainMenu, ScheduleSelection
-from ..utils import build_delete_button, delete_after, safe_edit_text, send_schedule
+from ..utils import build_delete_button, delete_after, send_schedule
 from ulstu.schedule import (
     format_schedule_error,
     get_schedule,
@@ -33,6 +36,15 @@ from ulstu.schedule import (
 from ulstu.schedule_image import generate_week_schedule_image
 
 router = Router()
+
+# Тексты reply-кнопок главного меню
+MENU_TODAY = "🗓 Сегодня"
+MENU_TOMORROW = "🗓 Завтра"
+MENU_THIS_WEEK = "На неделю"
+MENU_NEXT_WEEK = "На следующую неделю"
+MENU_BY_DATE = "📅 Расписание на дату"
+MENU_NOTIFY = "🔔 Автооповещение"
+MENU_SETTINGS = "⚙ Настройки"
 
 WELCOME_MESSAGES = {
     "night": [
@@ -97,76 +109,33 @@ async def get_welcome_message() -> str:
 
     return random.choice(WELCOME_MESSAGES[period])
 
-async def build_main_menu_buttons(
-        telegram_id: int,
-) -> InlineKeyboardMarkup:
+async def build_main_menu_buttons() -> ReplyKeyboardMarkup:
 
-    user = await get_user(telegram_id)
-
-    buttons = []
-
-    if user["notification_enabled"] == 1:
-        buttons.append([
-            InlineKeyboardButton(
-                text="🔔 Автооповещение: ВКЛ",
-                callback_data="notification_settings:open",
-                style="primary",
-            )
-        ])
-
-    else:
-        buttons.append([
-            InlineKeyboardButton(
-                text="🔕 Автооповещение: ВЫКЛ",
-                callback_data="notification_settings:open",
-            )
-        ])
-
-    buttons.append([
-        InlineKeyboardButton(
-            text="🗓 Сегодня",
-            callback_data="schedule:today",
-            style="success",
-        ),
-        InlineKeyboardButton(
-            text="🗓 Завтра",
-            callback_data="schedule:tomorrow",
-            style="success",
-        ),
-    ])
-
-    buttons.append([
-        InlineKeyboardButton(
-            text="На неделю",
-            callback_data="schedule_week:this",
-            style="success",
-        ),
-        InlineKeyboardButton(
-            text="На следующую неделю",
-            callback_data="schedule_week:next",
-            style="success",
-        ),
-    ])
-
-    buttons.append([
-        InlineKeyboardButton(
-            text="📅 Расписание на дату",
-            callback_data="schedule:select",
-            style="success",
-        ),
-    ])
-
-    buttons.append([
-        InlineKeyboardButton(
-            text="⚙ Настройки",
-            callback_data="open_settings",
-            style="primary",
-        ),
-    ])
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=buttons
+    builder = ReplyKeyboardBuilder()
+    builder.row(
+        KeyboardButton(text=MENU_TODAY),
+        KeyboardButton(text=MENU_TOMORROW),
     )
+    builder.row(
+        KeyboardButton(text=MENU_THIS_WEEK),
+        KeyboardButton(text=MENU_NEXT_WEEK),
+    )
+    builder.row(
+        KeyboardButton(text=MENU_BY_DATE),
+    )
+    builder.row(
+        KeyboardButton(text=MENU_NOTIFY),
+    )
+    builder.row(
+        KeyboardButton(text=MENU_SETTINGS),
+    )
+
+    return builder.as_markup(
+        resize_keyboard=True,
+        input_field_placeholder="Выберите действие",
+        is_persistent=True,
+    )
+
 
 async def build_main_menu_text(telegram_id: int) -> str:
     user = await get_user(telegram_id)
@@ -189,34 +158,57 @@ async def build_main_menu_text(telegram_id: int) -> str:
 async def show_main_menu(
         message: Message,
         state: FSMContext,
-        edit_previous_message: bool = False,
 ):
     log("main_menu", "Открытие главного меню", message.chat.id)
+
+    data = await state.get_data()
+    old_menu_message_id = data.get("menu_message_id")
+    old_menu_chat_id = data.get("menu_chat_id")
 
     await state.clear()
     await state.set_state(MainMenu.main_menu)
 
-    message_text = await build_main_menu_text(message.chat.id)
+    if old_menu_message_id and old_menu_chat_id:
+        try:
+            await message.bot.delete_message(
+                old_menu_chat_id,
+                old_menu_message_id,
+            )
+        except TelegramBadRequest:
+            pass
 
-    if edit_previous_message:
-        await safe_edit_text(
-            message,
-            message_text,
-            reply_markup = await build_main_menu_buttons(message.chat.id),
-            parse_mode="HTML"
-        )
-    else:
-        await message.answer(
-            message_text,
-            reply_markup=await build_main_menu_buttons(message.chat.id),
-            parse_mode="HTML"
-        )
+    menu_message = await message.answer(
+        await build_main_menu_text(message.chat.id),
+        parse_mode="HTML",
+        reply_markup=await build_main_menu_buttons(),
+    )
+
+    await state.update_data(
+        menu_message_id=menu_message.message_id,
+        menu_chat_id=menu_message.chat.id,
+    )
+
+
+async def return_to_main_menu(
+        message: Message,
+        state: FSMContext,
+):
+    """Возвращает в главное меню: удаляет сообщение подэкрана.
+    Текстовое меню из /start остаётся носителем reply-кнопок,
+    поэтому пересылать его не нужно."""
+    await state.clear()
+    await state.set_state(MainMenu.main_menu)
+
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        pass
 
 
 @router.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     log("main_menu", "Назад в главное меню", callback.from_user.id)
-    await show_main_menu(callback.message, state, edit_previous_message=True)
+    await return_to_main_menu(callback.message, state)
 
 
 # Клавиатура выбора недели и дня
@@ -313,33 +305,25 @@ def build_schedule_keyboard(
 
 # Открытие расписания: сегодня / завтра
 
-@router.callback_query(
+@router.message(
     MainMenu.main_menu,
-    F.data.startswith("schedule:"),
+    F.text.in_({MENU_TODAY, MENU_TOMORROW}),
 )
 async def schedule_button_handler(
-        callback: CallbackQuery,
+        message: Message,
         state: FSMContext,
 ):
-    await callback.answer()
-
-    action = callback.data.split(":", 1)[1]
-    user_id = callback.from_user.id
-
-    # «Расписание на дату»: сначала выбираем день, а уведомление
-    # о загрузке показываем уже при итоговом выводе расписания.
-    if action == "select":
-        await open_day_selection(callback, state)
-        return
+    action = "today" if message.text == MENU_TODAY else "tomorrow"
+    user_id = message.from_user.id
 
     # Сегодня/завтра: сразу показываем загрузку и заменяем её
     # расписанием либо сообщением об ошибке.
-    loading_message = await callback.message.answer(
+    loading_message = await message.answer(
         text="<i>Загружаю расписание...</i>",
         parse_mode="HTML"
     )
 
-    schedule, error_text = await get_schedule_for_user(callback, action)
+    schedule, error_text = await get_schedule_for_user(message, action)
 
     if error_text is not None:
         await loading_message.edit_text(error_text)
@@ -355,7 +339,7 @@ async def schedule_button_handler(
         log("main_menu", f"Отправка расписания на {today}", user_id)
 
         await send_schedule(
-            callback.message,
+            message,
             schedule_date or build_empty_day(today),
             edit_message=loading_message,
         )
@@ -371,24 +355,35 @@ async def schedule_button_handler(
         log("main_menu", f"Отправка расписания на {tomorrow}", user_id)
 
         await send_schedule(
-            callback.message,
+            message,
             schedule_date or build_empty_day(tomorrow),
             edit_message=loading_message,
         )
         return
 
 
+@router.message(
+    MainMenu.main_menu,
+    F.text == MENU_BY_DATE,
+)
+async def schedule_by_date_handler(
+        message: Message,
+        state: FSMContext,
+):
+    await open_day_selection(message, state)
+
+
 async def open_day_selection(
-        callback: CallbackQuery,
+        message: Message,
         state: FSMContext,
 ):
     """Загружает расписание и открывает клавиатуру выбора дня."""
-    user_id = callback.from_user.id
+    user_id = message.from_user.id
 
-    schedule, error_text = await get_schedule_for_user(callback, "select")
+    schedule, error_text = await get_schedule_for_user(message, "select")
 
     if error_text is not None:
-        error_message = await callback.message.answer(error_text)
+        error_message = await message.answer(error_text)
         await delete_after(error_message, 8)
         return
 
@@ -399,7 +394,7 @@ async def open_day_selection(
             user_id,
             level="WARNING",
         )
-        error_message = await callback.message.answer(
+        error_message = await message.answer(
             "❌ Расписание отсутствует.\n\n"
             "💡 Возможно, оно ещё не опубликовано "
             "на сайте УлГТУ. Попробуйте позже."
@@ -424,7 +419,7 @@ async def open_day_selection(
     )
 
     log("main_menu", "Открыт выбор дня", user_id)
-    await callback.message.edit_text(
+    await message.answer(
         text="📅 <b>Выберите день:</b>",
         parse_mode="HTML",
         reply_markup=keyboard,
@@ -638,26 +633,24 @@ def parse_schedule_date(value: str) -> date | None:
         return None
 
 
-@router.callback_query(
+@router.message(
     MainMenu.main_menu,
-    F.data.in_({"schedule_week:this", "schedule_week:next"}),
+    F.text.in_({MENU_THIS_WEEK, MENU_NEXT_WEEK}),
 )
 async def schedule_week_image_handler(
-        callback: CallbackQuery,
+        message: Message,
         state: FSMContext,
 ):
-    await callback.answer()
-
-    action = callback.data.split(":", 1)[1]
-    user_id = callback.from_user.id
+    action = "this" if message.text == MENU_THIS_WEEK else "next"
+    user_id = message.from_user.id
     log("main_menu", f"Запрос картинки недели: {action}", user_id)
 
-    schedule_message = await callback.message.answer(
+    schedule_message = await message.answer(
         text="<i>Загружаю расписание...</i>",
         parse_mode="HTML"
     )
 
-    schedule, error_text = await get_schedule_for_user(callback, f"week:{action}")
+    schedule, error_text = await get_schedule_for_user(message, f"week:{action}")
 
     if error_text is not None:
         await schedule_message.edit_text(error_text)
@@ -710,7 +703,7 @@ async def schedule_week_image_handler(
 
         return
 
-    
+
     week = schedule[week_index]
     date_range = week.get("date_range") or ()
     start_date = date_range[0] if len(date_range) > 0 else ""
@@ -718,7 +711,7 @@ async def schedule_week_image_handler(
 
     # Получаем подгруппу пользователя
     user = await get_user(
-        callback.from_user.id
+        message.from_user.id
     )
 
     user_subgroup = None
@@ -765,7 +758,7 @@ async def schedule_week_image_handler(
 
 
 async def get_schedule_for_user(
-        callback: CallbackQuery,
+        message: Message,
         action: str,
 ) -> tuple[list[dict] | None, str | None]:
     """Загружает расписание; возвращает (расписание, текст_ошибки).
@@ -773,7 +766,7 @@ async def get_schedule_for_user(
     При успехе — (schedule, None), при ошибке — (None, error_text),
     где error_text уже готов к показу пользователю.
     """
-    user_id = callback.from_user.id
+    user_id = message.from_user.id
     log("main_menu", f"Запрос расписания: {action}", user_id)
 
     try:

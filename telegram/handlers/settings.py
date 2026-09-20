@@ -13,6 +13,7 @@ from typing import Optional
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 from console_log import log
@@ -22,7 +23,7 @@ from ulstu.schedule import is_group_valid_advanced
 from validator.group import normalize_group
 
 from .keyboards import schedule_parts_keyboard, build_subgroup_keyboard
-from .main_menu import show_main_menu
+from .main_menu import MENU_SETTINGS, return_to_main_menu
 from ..states.states import MainMenu, Settings
 from ..utils import delete_after
 from ..utils import safe_edit_text, safe_bot_edit_text
@@ -152,13 +153,16 @@ async def build_settings_buttons(has_changes: bool) -> InlineKeyboardMarkup:
 # Рендер меню вынесен отдельно, чтобы его можно было вызывать как под локом,
 # так и без него — иначе повторный захват user_lock даст дедлок
 
-async def _load_or_get_settings_data(callback: CallbackQuery, state: FSMContext, first_open: bool) -> Optional[
-	SettingsData]:
-	if first_open:
-		user = await safe_get_user(callback.from_user.id)
+@router.message(MainMenu.main_menu, F.text == MENU_SETTINGS)
+async def settings_handler(message: Message, state: FSMContext):
+	async with user_lock(message.from_user.id):
+		log("settings", "Открытие настроек", message.from_user.id)
+		await state.set_state(Settings.settings)
+
+		user = await safe_get_user(message.from_user.id)
 		if user is None:
-			await callback.answer("Не удалось загрузить ваши данные. Попробуйте позже.", show_alert=True)
-			return None
+			await message.answer("Не удалось загрузить ваши данные. Попробуйте позже.")
+			return
 
 		data = SettingsData(
 			ulstu_login=user["ulstu_login"],
@@ -167,13 +171,16 @@ async def _load_or_get_settings_data(callback: CallbackQuery, state: FSMContext,
 			group_name=user["group_name"],
 			subgroup=user["subgroup"],
 			has_changes=False,
-			settings_chat_id=callback.message.chat.id,
-			settings_message_id=callback.message.message_id,
 		)
-		await save_settings_data(state, data)
-		return data
 
-	return await get_settings_data(state)
+		settings_message = await message.answer(
+			"Выберите нужную опцию.",
+			reply_markup=await build_settings_buttons(data.has_changes),
+		)
+
+		data.settings_chat_id = settings_message.chat.id
+		data.settings_message_id = settings_message.message_id
+		await save_settings_data(state, data)
 
 
 async def render_settings_menu(callback: CallbackQuery, state: FSMContext, data: SettingsData) -> None:
@@ -187,19 +194,6 @@ async def render_settings_menu(callback: CallbackQuery, state: FSMContext, data:
 	)
 
 
-@router.callback_query(MainMenu.main_menu, F.data == "open_settings")
-async def settings_handler(callback: CallbackQuery, state: FSMContext, first_open: bool = True):
-	async with user_lock(callback.from_user.id):
-		log("settings", "Открытие настроек", callback.from_user.id)
-		await state.set_state(Settings.settings)
-
-		data = await _load_or_get_settings_data(callback, state, first_open)
-		if data is None:
-			return
-
-		await render_settings_menu(callback, state, data)
-
-
 back_to_settings_keyboard = InlineKeyboardMarkup(
 	inline_keyboard=[
 		[
@@ -211,9 +205,9 @@ back_to_settings_keyboard = InlineKeyboardMarkup(
 
 @router.callback_query(StateFilter(Settings), F.data == "back_to_settings")
 async def back_to_settings(callback: CallbackQuery, state: FSMContext):
-	# Сюда попадаем напрямую по клику пользователя — лок ещё не захвачен,
-	# поэтому settings_handler может безопасно взять его сам.
-	await settings_handler(callback, state, first_open=False)
+	async with user_lock(callback.from_user.id):
+		data = await get_settings_data(state)
+		await render_settings_menu(callback, state, data)
 
 
 async def render_settings_after_message(bot, state: FSMContext, data: SettingsData) -> None:
@@ -422,15 +416,14 @@ async def save_changes(callback: CallbackQuery, state: FSMContext):
 			return
 
 		log("settings", "Изменения сохранены", callback.from_user.id)
-		await show_main_menu(callback.message, state, True)
+		await return_to_main_menu(callback.message, state)
 
 
 @router.callback_query(Settings.settings, F.data == "settings:cancel")
 async def cancel_changes(callback: CallbackQuery, state: FSMContext):
 	async with user_lock(callback.from_user.id):
 		log("settings", "Отмена изменений", callback.from_user.id)
-		await state.clear()
-		await show_main_menu(callback.message, state, True)
+		await return_to_main_menu(callback.message, state)
 
 accept_buttons = InlineKeyboardMarkup(
 	inline_keyboard=[
@@ -468,6 +461,10 @@ async def delete_account_acceptation_handler(callback: CallbackQuery, state: FSM
 			                              parse_mode="HTML")
 			await delete_user(callback.from_user.id)
 			await state.clear()
+			try:
+				await callback.message.delete()
+			except TelegramBadRequest:
+				pass
 		case "decline":
 			log("settings", "Пользователь отменил удаление", callback.from_user.id)
-			await show_main_menu(callback.message, state, True)
+			await return_to_main_menu(callback.message, state)
