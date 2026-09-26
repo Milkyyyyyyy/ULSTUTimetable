@@ -1,6 +1,7 @@
 """
 Генерация изображения расписания на неделю в виде таблицы (PNG).
-Используется Pillow + шрифты DejaVuSans.
+Используется Pillow + встроенный в проект шрифт Roboto, чтобы картинка
+выглядела одинаково на любом компьютере.
 """
 
 import shutil
@@ -11,7 +12,41 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+from console_log import log
+
 # Шрифты
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+FONTS_DIR = BASE_DIR / "assets" / "fonts"
+
+# Встроенные шрифты: картинка не должна зависеть от шрифтов на машине.
+
+BUNDLED_FONTS = {
+	False: FONTS_DIR / "Roboto-Regular.ttf",
+	True: FONTS_DIR / "Roboto-Bold.ttf",
+}
+
+# Запасные варианты на случай, если assets/fonts потерялись при копировании
+# репозитория или при сборке.
+
+SYSTEM_FONT_CANDIDATES = {
+	True: [
+		"C:/Windows/Fonts/arialbd.ttf",
+		"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+		"/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+		"/usr/share/fonts/liberation2/LiberationSans-Bold.ttf",
+		"/usr/share/fonts/gsfonts/NimbusSans-Bold.otf",
+	],
+	False: [
+		"C:/Windows/Fonts/arial.ttf",
+		"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+		"/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+		"/usr/share/fonts/liberation2/LiberationSans-Regular.ttf",
+		"/usr/share/fonts/gsfonts/NimbusSans-Regular.otf",
+	],
+}
+
 
 def _linux_font_via_fontconfig(bold: bool) -> str | None:
 	"""Возвращает путь к шрифту с поддержкой кириллицы через fontconfig."""
@@ -38,24 +73,14 @@ def _linux_font_via_fontconfig(bold: bool) -> str | None:
 	return None
 
 
-def get_font(size: int, bold: bool = False):
-	"""Ищет шрифт сначала в Windows, затем через fontconfig, затем вручную."""
-	if bold:
-		candidates = [
-			"C:/Windows/Fonts/arialbd.ttf",
-			"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-			"/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-			"/usr/share/fonts/liberation2/LiberationSans-Bold.ttf",
-			"/usr/share/fonts/gsfonts/NimbusSans-Bold.otf",
-		]
-	else:
-		candidates = [
-			"C:/Windows/Fonts/arial.ttf",
-			"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-			"/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-			"/usr/share/fonts/liberation2/LiberationSans-Regular.ttf",
-			"/usr/share/fonts/gsfonts/NimbusSans-Regular.otf",
-		]
+def find_font_file(bold: bool = False) -> str | None:
+	"""Ищет файл шрифта: сначала встроенный Roboto, затем системный."""
+	bundled_path = BUNDLED_FONTS[bold]
+
+	if bundled_path.is_file():
+		return str(bundled_path)
+
+	candidates = list(SYSTEM_FONT_CANDIDATES[bold])
 
 	fontconfig_path = _linux_font_via_fontconfig(bold)
 
@@ -63,10 +88,59 @@ def get_font(size: int, bold: bool = False):
 		candidates.insert(0, fontconfig_path)
 
 	for path in candidates:
-		if Path(path).exists():
-			return ImageFont.truetype(path, size)
+		if Path(path).is_file():
+			return path
 
-	return ImageFont.load_default()
+	return None
+
+
+def get_font(size: int, bold: bool = False):
+	"""Загружает встроенный Roboto нужного размера.
+
+	Если файла шрифта нет, берётся системный, и только затем — шрифт
+	Pillow по умолчанию (в нём нет кириллицы).
+	"""
+	path = find_font_file(bold)
+
+	if path is None:
+		log(
+			"schedule_image",
+			f"Не найден шрифт (bold={bold}), "
+			"используется шрифт Pillow по умолчанию; "
+			"проверь assets/fonts",
+			level="WARNING",
+		)
+
+		return ImageFont.load_default(size=size)
+
+	try:
+		return ImageFont.truetype(path, size)
+	except OSError as error:
+		log(
+			"schedule_image",
+			f"Не удалось загрузить шрифт {path}: {error}",
+			level="WARNING",
+		)
+
+		return ImageFont.load_default(size=size)
+
+
+def log_fonts_in_use() -> None:
+	"""Пишет в лог, какие файлы шрифтов реально используются."""
+	regular = find_font_file(False)
+	bold = find_font_file(True)
+
+	for bold_flag, path in ((False, regular), (True, bold)):
+		if path is None:
+			continue
+
+		place = "встроенный" if path == str(BUNDLED_FONTS[bold_flag]) else "системный"
+
+		log(
+			"schedule_image",
+			f"Шрифт расписания ({place}, "
+			f"{'bold' if bold_flag else 'regular'}): {path}",
+		)
 
 
 FONT_TITLE = get_font(28, bold=True)
@@ -79,6 +153,8 @@ FONT_SUBJECT = get_font(19, bold=True)
 FONT_TYPE = get_font(17)
 FONT_TEACHER = get_font(17)
 FONT_ROOM = get_font(17)
+
+log_fonts_in_use()
 
 
 # Перенос текста
