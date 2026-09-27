@@ -6,6 +6,7 @@
 import asyncio
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from aiogram import Bot
 
@@ -94,7 +95,7 @@ async def notification_worker(bot: Bot):
     log("notifications", "Воркер уведомлений стартовал")
 
     while True:
-        now = datetime.now().astimezone()
+        now = datetime.now(ZoneInfo("Europe/Ulyanovsk"))
 
         current_time = now.strftime("%H:%M")
         current_date = now.strftime("%Y-%m-%d")

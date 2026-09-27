@@ -10,6 +10,7 @@ import asyncio
 import logging
 import shutil
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
@@ -292,7 +293,7 @@ async def stats_command():
 
 
 async def notify_command(bot, argument):
-    now = datetime.now().astimezone()
+    now = datetime.now(ZoneInfo("Europe/Ulyanovsk"))
     current_time = now.strftime("%H:%M")
     current_date = now.strftime("%Y-%m-%d")
 
@@ -316,7 +317,7 @@ async def notify_command(bot, argument):
 
 
 def read_log_tail(limit: int) -> str:
-    path = LOGS_DIR / f"{datetime.now().strftime('%Y-%m-%d')}.log"
+    path = LOGS_DIR / f"{datetime.now(ZoneInfo("Europe/Ulyanovsk")).strftime('%Y-%m-%d')}.log"
 
     if not path.exists():
         return "Лог за сегодня не найден"
@@ -432,7 +433,7 @@ async def db_backup_command(argument):
         print(f"База данных не найдена: {DB_PATH}")
         return
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(ZoneInfo("Europe/Ulyanovsk")).strftime("%Y%m%d_%H%M%S")
     backup_path = DB_PATH.with_name(f"timetable_backup_{timestamp}.db")
 
     await asyncio.to_thread(shutil.copy2, DB_PATH, backup_path)

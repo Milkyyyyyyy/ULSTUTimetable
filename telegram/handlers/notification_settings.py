@@ -4,6 +4,7 @@
 """
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
@@ -168,7 +169,7 @@ async def set_time_button_handler(
 
 async def get_last_sent_for_new_time(notification_time: str) -> str:
     """Если новое время ещё не наступило сегодня — сбрасывает дату последней отправки."""
-    now = datetime.now().astimezone()
+    now = datetime.now(ZoneInfo("Europe/Ulyanovsk")).astimezone()
     current_time = now.strftime("%H:%M")
     current_date = now.strftime("%Y-%m-%d")
 

@@ -17,6 +17,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 BASE_DIR = Path(__file__).resolve().parent
 LOGS_DIR = BASE_DIR / "logs"
@@ -129,12 +130,12 @@ class _DailyFileHandler(logging.Handler):
         self._open_file()
 
     def _open_file(self) -> None:
-        self._current_date = datetime.now().strftime("%Y-%m-%d")
+        self._current_date = datetime.now(ZoneInfo("Europe/Ulyanovsk")).strftime("%Y-%m-%d")
         path = self._logs_dir / f"{self._current_date}.log"
         self._stream = open(path, "a", encoding=self._encoding)
 
     def emit(self, record: logging.LogRecord) -> None:
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(ZoneInfo("Europe/Ulyanovsk")).strftime("%Y-%m-%d")
 
         if today != self._current_date:
             self._close_stream()

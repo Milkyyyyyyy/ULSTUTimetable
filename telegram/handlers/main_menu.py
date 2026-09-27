@@ -6,6 +6,7 @@
 import random
 from datetime import UTC, date, datetime, timedelta
 from time import timezone
+from zoneinfo import ZoneInfo
 
 from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
@@ -94,7 +95,7 @@ def build_empty_day(target_date: date) -> dict:
     }
 
 async def get_welcome_message() -> str:
-    hour = datetime.now().hour
+    hour = datetime.now(ZoneInfo("Europe/Ulyanovsk")).hour
 
     if 0 <= hour < 6:
         period = "night"

@@ -6,6 +6,7 @@
 import csv
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 REQUEST_LOG_PATH = Path("logs/request_log.csv")
 
@@ -49,7 +50,7 @@ def log_request(
             writer.writeheader()
 
         writer.writerow({
-            "timestamp": datetime.now().astimezone().isoformat(),
+            "timestamp": datetime.now(ZoneInfo("Europe/Ulyanovsk")).astimezone().isoformat(),
             "telegram_id": telegram_id,
             "operation": operation,
             "schedule_part": schedule_part,
