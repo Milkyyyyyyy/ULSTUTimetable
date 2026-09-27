@@ -64,7 +64,7 @@ class _ColorFormatter(logging.Formatter):
     def _format_parts(self, record: logging.LogRecord) -> str:
         message = record.getMessage()
 
-        created = datetime.fromtimestamp(record.created)
+        created = datetime.fromtimestamp(record.created, tz=ZoneInfo("Europe/Ulyanovsk"))
         timestamp = created.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
         place = getattr(record, "place", record.name or "-")
