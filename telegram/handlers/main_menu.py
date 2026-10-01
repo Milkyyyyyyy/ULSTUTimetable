@@ -134,7 +134,7 @@ async def build_main_menu_buttons() -> ReplyKeyboardMarkup:
     return builder.as_markup(
         resize_keyboard=True,
         input_field_placeholder="Выберите действие",
-        is_persistent=True,
+        is_persistent=False,
     )
 
 

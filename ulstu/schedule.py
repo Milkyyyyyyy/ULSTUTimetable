@@ -27,7 +27,7 @@ from validator.group import normalize_group
 BASE_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = BASE_DIR / 'cache'
 # Расписание обновляется часто, список групп — редко
-CACHE_TTL = timedelta(hours=4)
+CACHE_TTL = timedelta(hours=6)
 GROUPS_CACHE_TTL = timedelta(days=1)
 
 # Флаг: True → JSON API time.ulstu.ru, False → старый HTML парсинг
