@@ -36,7 +36,7 @@ SCHEDULE_URLS = {
 	),
 	2: (
 		"https://lk.ulstu.ru/timetable/shared/schedule/"
-		"Часть 2 – ФИСТ, ГФ/raspisan.html"
+		"Часть 2 – ФИСТ, ГФ, группы ВТАСбз, ИДбз/raspisan.html"
 	),
 	3: (
 		"https://lk.ulstu.ru/timetable/shared/schedule/"
