@@ -324,7 +324,7 @@ async def schedule_button_handler(
         parse_mode="HTML"
     )
 
-    schedule, error_text = await get_schedule_for_user(message, action)
+    schedule, error_text, warning_text = await get_schedule_for_user(message, action)
 
     if error_text is not None:
         await loading_message.edit_text(error_text)
@@ -343,6 +343,7 @@ async def schedule_button_handler(
             message,
             schedule_date or build_empty_day(today),
             edit_message=loading_message,
+            note=warning_text,
         )
         return
 
@@ -359,6 +360,7 @@ async def schedule_button_handler(
             message,
             schedule_date or build_empty_day(tomorrow),
             edit_message=loading_message,
+            note=warning_text,
         )
         return
 
@@ -381,7 +383,7 @@ async def open_day_selection(
     """Загружает расписание и открывает клавиатуру выбора дня."""
     user_id = message.from_user.id
 
-    schedule, error_text = await get_schedule_for_user(message, "select")
+    schedule, error_text, warning_text = await get_schedule_for_user(message, "select")
 
     if error_text is not None:
         error_message = await message.answer(error_text)
@@ -408,6 +410,7 @@ async def open_day_selection(
     await state.update_data(
         schedule=schedule,
         week_index=0,
+        schedule_note=warning_text,
     )
 
     await state.set_state(
@@ -556,6 +559,7 @@ async def schedule_day_handler(
         callback.message,
         day_schedule,
         edit_message=loading_message,
+        note=data.get("schedule_note"),
     )
 
 
@@ -651,7 +655,7 @@ async def schedule_week_image_handler(
         parse_mode="HTML"
     )
 
-    schedule, error_text = await get_schedule_for_user(message, f"week:{action}")
+    schedule, error_text, warning_text = await get_schedule_for_user(message, f"week:{action}")
 
     if error_text is not None:
         await schedule_message.edit_text(error_text)
@@ -736,6 +740,9 @@ async def schedule_week_image_handler(
         f"{start_date} — {end_date}"
     )
 
+    if warning_text:
+        caption = f"{caption}\n\n{warning_text}"
+
     log(
         "main_menu",
         f"Отправка картинки недели {week['week']}",
@@ -761,17 +768,21 @@ async def schedule_week_image_handler(
 async def get_schedule_for_user(
         message: Message,
         action: str,
-) -> tuple[list[dict] | None, str | None]:
-    """Загружает расписание; возвращает (расписание, текст_ошибки).
+) -> tuple[list[dict] | None, str | None, str | None]:
+    """Загружает расписание; возвращает (расписание, ошибка, приписка).
 
-    При успехе — (schedule, None), при ошибке — (None, error_text),
-    где error_text уже готов к показу пользователю.
+    При успехе — (schedule, None, warning_text), при ошибке —
+    (None, error_text, None), где тексты уже готовы к показу.
+    warning_text содержит предупреждения, например об устаревшем
+    списке групп.
     """
     user_id = message.from_user.id
     log("main_menu", f"Запрос расписания: {action}", user_id)
 
+    warnings: list[str] = []
+
     try:
-        schedule = await get_schedule(user_id)
+        schedule = await get_schedule(user_id, warnings=warnings)
     except Exception as error:
         log(
             "main_menu",
@@ -779,6 +790,8 @@ async def get_schedule_for_user(
             user_id,
             level="ERROR",
         )
-        return None, format_schedule_error(error)
+        return None, format_schedule_error(error), None
 
-    return schedule, None
+    warning_text = "\n\n".join(warnings) if warnings else None
+
+    return schedule, None, warning_text

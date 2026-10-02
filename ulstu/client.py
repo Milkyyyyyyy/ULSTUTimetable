@@ -1,10 +1,16 @@
 """
 Клиент для работы с расписанием УлГТУ: авторизация в кабинете,
 сохранение сессии в виде cookies и загрузка HTML страниц расписания.
+
+Ссылки на части расписания не зашиты в коде намертво: они раз в
+SCHEDULE_PARTS_TTL парсятся со страницы https://lk.ulstu.ru/timetable/,
+а SCHEDULE_URLS используется как запасной вариант, если разбор не удался.
 """
 
 import json
-from urllib.parse import urljoin
+import re
+from datetime import datetime, timedelta, timezone
+from urllib.parse import unquote, urljoin
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -13,7 +19,7 @@ from console_log import log
 from database import get_user, update_user
 from encryption.encryption import decrypt_data, encrypt_data
 from validator.group import normalize_group
-from ulstu.api_errors import ULSTUAPIError, ULSTUAuthenticationError, ULSTUResponseError
+from ulstu.api_errors import ULSTUAPIError, ULSTUAuthenticationError, ULSTUNotFoundError, ULSTUResponseError
 from ulstu.request_logger import log_request
 
 LOGIN_URL = "https://lk.ulstu.ru/timetable/"
@@ -26,6 +32,13 @@ REQUEST_TIMEOUT = aiohttp.ClientTimeout(
 	connect=10,
 	sock_read=20,
 )
+
+# Признак ссылки на страницу групп части расписания
+SCHEDULE_HREF_MARKER = "shared/schedule"
+# Номер части расписания пишут и в тексте ссылки, и в её URL
+PART_NUMBER_PATTERN = re.compile(r"часть\s*(\d+)", re.IGNORECASE)
+# Как долго держать найденные ссылки на части расписания
+SCHEDULE_PARTS_TTL = timedelta(hours=6)
 
 # Части расписания соответствуют меню на сайте lk.ulstu.ru
 SCHEDULE_URLS = {
@@ -85,8 +98,16 @@ async def _fetch_schedule_html(
 	session: aiohttp.ClientSession,
 	url: str,
 ) -> str:
-	"""GET страницы; если сайт редиректит на auth/login — сессия истекла."""
+	"""GET страницы; если сайт редиректит на auth/login — сессия истекла.
+
+	Отсутствие страницы (404) поднимает ULSTUNotFoundError: значит,
+	ссылка на расписание устарела и её нужно найти заново.
+	"""
 	response = await session.get(url)
+
+	if response.status == 404:
+		raise ULSTUNotFoundError(f"Страница не найдена (404): {url}")
+
 	response.raise_for_status()
 
 	if "auth/login" in str(response.url):
@@ -95,11 +116,199 @@ async def _fetch_schedule_html(
 	return await response.text()
 
 
-async def _resolve_schedule_part(
+def extract_part_number(*sources: str) -> int | None:
+	"""Ищет номер части расписания в тексте ссылки или в её URL."""
+	for source in sources:
+		if not source:
+			continue
+
+		match = PART_NUMBER_PATTERN.search(source)
+
+		if match:
+			return int(match.group(1))
+
+	return None
+
+
+def parse_schedule_part_links(html: str, base_url: str) -> dict[int, str]:
+	"""Собирает {номер части: ссылка} со страницы lk.ulstu.ru/timetable/.
+
+	Номер части берётся из текста ссылки, а если его там нет — из URL.
+	Первая найденная ссылка на часть побеждает: страница может содержать
+	дубли (например, ссылку в меню и в тексте страницы).
+	"""
+	soup = BeautifulSoup(html, "html.parser")
+
+	parts: dict[int, str] = {}
+
+	for link in soup.select("a[href]"):
+		href = link.get("href") or ""
+
+		if SCHEDULE_HREF_MARKER not in href:
+			continue
+
+		url = urljoin(base_url, href)
+
+		part = extract_part_number(
+			link.get_text(" ", strip=True),
+			unquote(url),
+		)
+
+		if part is None or part in parts:
+			continue
+
+		parts[part] = url
+
+	return parts
+
+
+# Найденные ссылки на части расписания: общие для всего процесса,
+# чтобы не дёргать главную страницу перед каждым запросом расписания
+_schedule_parts_cache: dict[int, str] = {}
+_schedule_parts_updated_at: datetime | None = None
+
+
+def clear_schedule_parts_cache() -> None:
+	"""Забывает найденные ссылки — вызывается после 404."""
+	global _schedule_parts_cache, _schedule_parts_updated_at
+
+	_schedule_parts_cache = {}
+	_schedule_parts_updated_at = None
+
+
+async def discover_schedule_part_urls(
+	session: aiohttp.ClientSession,
+	telegram_id: int | None = None,
+	force_refresh: bool = False,
+) -> dict[int, str]:
+	"""Возвращает {номер части: ссылка}, найденные на странице расписания.
+
+	Результат кэшируется на SCHEDULE_PARTS_TTL; force_refresh игнорирует кэш.
+	При любой ошибке возвращает пустой словарь — вызывающая сторона
+	воспользуется SCHEDULE_URLS.
+	"""
+	global _schedule_parts_cache, _schedule_parts_updated_at
+
+	if (
+		not force_refresh
+		and _schedule_parts_updated_at is not None
+		and datetime.now(timezone.utc) - _schedule_parts_updated_at
+		< SCHEDULE_PARTS_TTL
+	):
+		return dict(_schedule_parts_cache)
+
+	log(
+		"ulstu.client",
+		"Обновляем список частей расписания на lk.ulstu.ru",
+		telegram_id,
+	)
+
+	log_request(
+		operation="schedule_parts_index",
+		telegram_id=telegram_id,
+		url=LOGIN_URL,
+	)
+
+	try:
+		html = await _fetch_schedule_html(session, LOGIN_URL)
+
+	except Exception as error:
+		clear_schedule_parts_cache()
+
+		log(
+			"ulstu.client",
+			f"Не удалось получить список частей расписания: {error}",
+			telegram_id,
+			level="WARNING",
+		)
+
+		return {}
+
+	parts = parse_schedule_part_links(html, LOGIN_URL)
+
+	if not parts:
+		clear_schedule_parts_cache()
+
+		log(
+			"ulstu.client",
+			"На странице расписания не найдено ссылок на части",
+			telegram_id,
+			level="WARNING",
+		)
+
+		return {}
+
+	_schedule_parts_cache = parts
+	_schedule_parts_updated_at = datetime.now(timezone.utc)
+
+	# Название части едет в самом URL — так видно, что именно
+	# УлГТУ сейчас называет каждой частью
+	log(
+		"ulstu.client",
+		"Найдены части расписания: "
+		+ ", ".join(
+			f"{part} — {unquote(url).rsplit('/', 1)[-1]}"
+			for part, url in sorted(parts.items())
+		),
+		telegram_id,
+	)
+
+	unknown_parts = sorted(set(parts) - set(SCHEDULE_URLS))
+
+	if unknown_parts:
+		log(
+			"ulstu.client",
+			f"На сайте есть части расписания, которых нет в SCHEDULE_URLS: "
+			f"{unknown_parts}. Возможно, состав факультетов изменился.",
+			telegram_id,
+			level="WARNING",
+		)
+
+	return dict(parts)
+
+
+async def resolve_schedule_url(
+	session: aiohttp.ClientSession,
+	schedule_part: int,
+	telegram_id: int | None = None,
+	force_refresh: bool = False,
+) -> str:
+	"""Возвращает ссылку на список групп заданной части расписания.
+
+	Приоритет: ссылка, найденная на сайте; запасной вариант — SCHEDULE_URLS.
+	"""
+	parts = await discover_schedule_part_urls(
+		session,
+		telegram_id,
+		force_refresh=force_refresh,
+	)
+
+	url = parts.get(schedule_part)
+
+	if url is not None:
+		return url
+
+	fallback = SCHEDULE_URLS.get(schedule_part)
+
+	if fallback is None:
+		raise ValueError(f"Неизвестная часть расписания: {schedule_part}")
+
+	log(
+		"ulstu.client",
+		f"Часть {schedule_part} не найдена на сайте, "
+		f"используем ссылку из SCHEDULE_URLS",
+		telegram_id,
+		level="WARNING",
+	)
+
+	return fallback
+
+
+async def _resolve_user_part(
 	telegram_id: int,
 	override_schedule_part: int | None = None,
-) -> tuple[dict, int, str]:
-	"""Возвращает (user, schedule_part, schedule_url) по ID телеграм-пользователя."""
+) -> tuple[dict, int]:
+	"""Возвращает (user, schedule_part) по ID телеграм-пользователя."""
 	user = await get_user(telegram_id)
 
 	if user is None:
@@ -114,7 +323,7 @@ async def _resolve_schedule_part(
 	if schedule_part not in SCHEDULE_URLS:
 		raise ValueError(f"Неизвестная часть расписания: {schedule_part}")
 
-	return user, schedule_part, SCHEDULE_URLS[schedule_part]
+	return user, schedule_part
 
 
 async def login(
@@ -236,7 +445,7 @@ async def get_schedule_groups(
 	override_schedule_part: int | None = None,
 ) -> list[dict]:
 	"""Возвращает список групп заданной части расписания."""
-	_, schedule_part, schedule_url = await _resolve_schedule_part(
+	_, schedule_part = await _resolve_user_part(
 		telegram_id,
 		override_schedule_part,
 	)
@@ -250,6 +459,12 @@ async def get_schedule_groups(
 	session = await get_authenticated_session(telegram_id)
 
 	try:
+		schedule_url = await resolve_schedule_url(
+			session,
+			schedule_part,
+			telegram_id,
+		)
+
 		schedule_html = await _fetch_schedule_html(session, schedule_url)
 
 		groups = await parse_groups(schedule_html, schedule_url)
@@ -266,6 +481,58 @@ async def get_schedule_groups(
 		await session.close()
 
 
+async def _find_group_url(
+	session: aiohttp.ClientSession,
+	schedule_part: int,
+	group_name: str,
+	telegram_id: int,
+	force_refresh: bool = False,
+) -> str:
+	"""Ищет ссылку на группу на странице части расписания."""
+	schedule_url = await resolve_schedule_url(
+		session,
+		schedule_part,
+		telegram_id,
+		force_refresh=force_refresh,
+	)
+
+	schedule_html = await _fetch_schedule_html(session, schedule_url)
+
+	parsed_groups = await parse_groups(schedule_html, schedule_url)
+
+	group_url = find_group_url(parsed_groups, group_name)
+
+	if group_url is None:
+		raise ValueError(f"Группа {group_name} не найдена в расписании")
+
+	return group_url
+
+
+async def _fetch_group_schedule_html(
+	session: aiohttp.ClientSession,
+	group_url: str,
+	schedule_part: int,
+	telegram_id: int,
+) -> str:
+	"""Скачивает HTML расписания группы и пишет его в лог."""
+	log_request(
+		operation="group_schedule",
+		telegram_id=telegram_id,
+		schedule_part=schedule_part,
+		url=group_url,
+	)
+
+	html = await _fetch_schedule_html(session, group_url)
+
+	log(
+		"ulstu.client",
+		f"HTML расписания получен ({len(html)} символов)",
+		telegram_id,
+	)
+
+	return html
+
+
 async def get_group_schedule(
 	telegram_id: int,
 	groups: list[dict] | None = None,
@@ -274,8 +541,11 @@ async def get_group_schedule(
 
 	Если groups переданы (из кеша) — группа ищется в них, иначе
 	сначала загружается raspisan.html для определяющей части.
+
+	Если ссылка на группу вернула 404, она ищется заново по свежему
+	списку групп с сайта: ссылки на части расписания у УлГТУ меняются.
 	"""
-	user, schedule_part, schedule_url = await _resolve_schedule_part(telegram_id)
+	user, schedule_part = await _resolve_user_part(telegram_id)
 	group_name = normalize_group(user["group_name"])
 
 	log(
@@ -284,19 +554,19 @@ async def get_group_schedule(
 		telegram_id,
 	)
 
-	group_url = find_group_url(groups, group_name) if groups is not None else None
-
-	if group_url is not None:
-		log(
-			"ulstu.client",
-			f"Группа найдена в переданном списке: {user['group_name']}",
-			telegram_id,
-		)
-
 	session = await get_authenticated_session(telegram_id)
 
 	try:
-		if group_url is None:
+		group_url = find_group_url(groups, group_name) if groups is not None else None
+
+		if group_url is not None:
+			log(
+				"ulstu.client",
+				f"Группа найдена в переданном списке: {user['group_name']}",
+				telegram_id,
+			)
+
+		else:
 			log(
 				"ulstu.client",
 				"Ссылка на группу не найдена в кеше. "
@@ -304,30 +574,46 @@ async def get_group_schedule(
 				telegram_id,
 			)
 
-			schedule_html = await _fetch_schedule_html(session, schedule_url)
+			group_url = await _find_group_url(
+				session,
+				schedule_part,
+				group_name,
+				telegram_id,
+			)
 
-			parsed_groups = await parse_groups(schedule_html, schedule_url)
-			group_url = find_group_url(parsed_groups, group_name)
+		try:
+			return await _fetch_group_schedule_html(
+				session,
+				group_url,
+				schedule_part,
+				telegram_id,
+			)
 
-		if group_url is None:
-			raise ValueError(f"Группа {user['group_name']} не найдена в расписании")
+		except ULSTUNotFoundError:
+			clear_schedule_parts_cache()
 
-		log_request(
-			operation="group_schedule",
-			telegram_id=telegram_id,
-			schedule_part=schedule_part,
-			url=group_url,
+			log(
+				"ulstu.client",
+				f"Ссылка на группу вернула 404: {group_url}. "
+				f"Ищем её заново по свежему списку групп.",
+				telegram_id,
+				level="WARNING",
+			)
+
+		fresh_group_url = await _find_group_url(
+			session,
+			schedule_part,
+			group_name,
+			telegram_id,
+			force_refresh=True,
 		)
 
-		html = await _fetch_schedule_html(session, group_url)
-
-		log(
-			"ulstu.client",
-			f"HTML расписания получен ({len(html)} символов)",
+		return await _fetch_group_schedule_html(
+			session,
+			fresh_group_url,
+			schedule_part,
 			telegram_id,
 		)
-
-		return html
 
 	finally:
 		await session.close()

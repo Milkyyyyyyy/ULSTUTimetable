@@ -1,5 +1,6 @@
 """
-Исключения для работы с JSON API расписания УлГТУ (time.ulstu.ru).
+Исключения для работы с сайтом и API расписания УлГТУ
+(lk.ulstu.ru, time.ulstu.ru).
 """
 
 
@@ -13,3 +14,10 @@ class ULSTUAuthenticationError(ULSTUAPIError):
 
 class ULSTUResponseError(ULSTUAPIError):
 	"""API вернул неожиданный формат ответа."""
+
+
+class ULSTUNotFoundError(ULSTUAPIError):
+	"""Запрошенная страница расписания не найдена (HTTP 404).
+
+	Обычно означает, что УлГТУ изменил ссылки на части расписания.
+	"""

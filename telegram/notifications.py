@@ -125,8 +125,13 @@ async def send_batch(bot: Bot, users: list, current_date: str):
         # обновляет общий кэш расписания для всех из этой группы
         representative = group_users[0]
 
+        warnings: list[str] = []
+
         try:
-            schedule = await get_schedule(representative["telegram_id"])
+            schedule = await get_schedule(
+                representative["telegram_id"],
+                warnings=warnings,
+            )
         except Exception as e:
             log(
                 "notifications",
@@ -148,6 +153,8 @@ async def send_batch(bot: Bot, users: list, current_date: str):
                 )
             continue
 
+        note = "\n\n".join(warnings) if warnings else None
+
         for user in group_users:
             tasks.append(
                 send_tomorrow_schedule(
@@ -156,6 +163,7 @@ async def send_batch(bot: Bot, users: list, current_date: str):
                     current_date,
                     schedule,
                     limiter,
+                    note=note,
                 )
             )
 
@@ -169,6 +177,7 @@ async def send_tomorrow_schedule(
     current_date: str,
     schedule: list,
     limiter: RateLimiter,
+    note: str | None = None,
 ):
     """Формирует расписание на завтра (из уже полученного кэша) и отправляет
     пользователю с кнопкой «Удалить»."""
@@ -196,6 +205,9 @@ async def send_tomorrow_schedule(
             tomorrow_schedule,
             telegram_id,
         )
+
+        if note:
+            message_text = f"{message_text}\n\n{note}"
 
         # Единственный сетевой запрос «на пользователя» — отправка в Telegram,
         # его и ограничиваем по частоте (расписание берём из общего кэша).

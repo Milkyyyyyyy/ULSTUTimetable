@@ -10,12 +10,16 @@ import re
 from datetime import date, datetime, timedelta, timezone
 from html import escape
 from pathlib import Path
+from typing import NamedTuple
+from zoneinfo import ZoneInfo
 
+import aiohttp
 from bs4 import BeautifulSoup
 
 from console_log import log
 from database import get_user
 from ulstu.api_normalizer import normalize_api_schedule
+from ulstu.api_errors import ULSTUNotFoundError
 from ulstu.client import (
 	get_current_week,
 	get_group_schedule,
@@ -34,6 +38,35 @@ GROUPS_CACHE_TTL = timedelta(days=1)
 USE_SCHEDULE_API = True
 
 CACHE_CLEANUP_INTERVAL = timedelta(hours=3)
+
+# Ошибки, после которых список групп имеет смысл взять из кэша:
+# сайт недоступен или ссылки на расписание поменялись (404).
+# Ошибки авторизации сюда не входят — о них пользователю нужно сказать.
+GROUPS_FALLBACK_ERRORS = (
+	ULSTUNotFoundError,
+	aiohttp.ClientError,
+	TimeoutError,
+)
+
+STALE_GROUPS_WARNING = (
+	"<i>⚠️ Не удалось обновить список групп на сайте УлГТУ, "
+	"показываю расписание по устаревшим данным{date_part}.</i>"
+)
+
+
+class CacheEntry(NamedTuple):
+	"""Прочитанный из кэша элемент вместе со временем обновления."""
+
+	value: object
+	updated_at: datetime
+
+
+class GroupsSnapshot(NamedTuple):
+	"""Список групп части расписания и признак того, что он устарел."""
+
+	groups: list[dict]
+	is_stale: bool = False
+	updated_at: datetime | None = None
 
 async def cache_cleanup_loop():
     while True:
@@ -383,8 +416,15 @@ def parse_lesson_text(text: str) -> list[dict]:
     return lessons
 
 
-async def get_schedule(telegram_id: int) -> list[dict]:
-	"""Возвращает расписание пользователя, используя локальный кэш."""
+async def get_schedule(
+	telegram_id: int,
+	warnings: list[str] | None = None,
+) -> list[dict]:
+	"""Возвращает расписание пользователя, используя локальный кэш.
+
+	Если передан список warnings, в него добавляются предупреждения
+	пользователю (например, что список групп пришлось взять устаревшим).
+	"""
 	user = await get_user(telegram_id)
 
 	if user is None:
@@ -443,13 +483,19 @@ async def get_schedule(telegram_id: int) -> list[dict]:
 		# Путь через HTML расписания УлГТУ
 		current_week = None
 
-		groups = await get_available_groups(
+		groups_snapshot = await get_available_groups(
 			telegram_id,
 			override_schedule_part=schedule_part,
 		)
+
+		if groups_snapshot.is_stale and warnings is not None:
+			warnings.append(
+				format_stale_groups_warning(groups_snapshot.updated_at)
+			)
+
 		html = await get_group_schedule(
 			telegram_id,
-			groups,
+			groups_snapshot.groups,
 		)
 		schedule = parse_schedule(html)
 
@@ -544,6 +590,19 @@ def format_schedule_error(error: BaseException) -> str:
             "в ⚙ Настройки."
         )
 
+    if (
+        isinstance(error, ULSTUNotFoundError)
+        or "404" in message
+    ):
+        return (
+            "❌ Не удалось открыть страницу расписания: "
+            "сайт УлГТУ вернул ошибку 404.\n\n"
+            "Похоже, УлГТУ изменил ссылки на расписание, "
+            "и в кеше нет подходящей страницы.\n\n"
+            "💡 Попробуйте позже — бот продолжит "
+            "работать, как только ссылки обновятся."
+        )
+
     if "Неизвестная часть расписания" in message:
         return (
             "❌ Некорректный факультет "
@@ -603,8 +662,16 @@ def get_cache_path(schedule_part: int, group_name: str) -> Path:
     return part_dir / f"{normalize_group(group_name)}.json"
 
 
-def load_cache(path: Path, data_key: str, ttl: timedelta):
-    """Возвращает данные из кэша по ключу, или None если кэш устарел/поврежден."""
+def load_cache_entry(
+    path: Path,
+    data_key: str,
+    ttl: timedelta | None,
+) -> CacheEntry | None:
+    """Читает кэш по ключу; None при отсутствии/повреждении.
+
+    ttl=None игнорирует возраст файла — так достают устаревшие,
+    но единственные доступные данные.
+    """
     if not path.exists():
         return None
 
@@ -627,15 +694,26 @@ def load_cache(path: Path, data_key: str, ttl: timedelta):
         if updated.tzinfo is None:
             updated = updated.replace(tzinfo=timezone.utc)
 
-        now = datetime.now(timezone.utc)
+        if ttl is not None:
+            now = datetime.now(timezone.utc)
 
-        if now - updated >= ttl:
-            return None
+            if now - updated >= ttl:
+                return None
 
-        return payload
+        return CacheEntry(payload, updated)
 
     except (OSError, json.JSONDecodeError, ValueError):
         return None
+
+
+def load_cache(path: Path, data_key: str, ttl: timedelta):
+    """Возвращает данные из кэша по ключу, или None если кэш устарел/поврежден."""
+    entry = load_cache_entry(path, data_key, ttl)
+
+    if entry is None:
+        return None
+
+    return entry.value
 
 
 def save_cache(path: Path, data_key: str, payload, **meta) -> None:
@@ -749,11 +827,27 @@ def get_groups_cache_path(schedule_part: int) -> Path:
     return part_dir / "groups.json"
 
 
+def format_stale_groups_warning(updated_at: datetime | None) -> str:
+    """Приписка про устаревший список групп для сообщения с расписанием."""
+    date_part = ""
+
+    if updated_at is not None:
+        local_time = updated_at.astimezone(ZoneInfo("Europe/Ulyanovsk"))
+        date_part = f" (данные от {local_time:%d.%m.%Y})"
+
+    return STALE_GROUPS_WARNING.format(date_part=date_part)
+
+
 async def get_available_groups(
     telegram_id: int,
     override_schedule_part: int | None = None,
-) -> list[dict]:
-    """Возвращает список групп части расписания с кэшем на 90 дней."""
+) -> GroupsSnapshot:
+    """Возвращает список групп части расписания с кэшем на 1 день.
+
+    Если сайт недоступен или ссылка на часть расписания протухла (404),
+    берётся устаревший кеш, а в снимке выставляется is_stale=True —
+    об этом предупреждается пользователь.
+    """
     user = await get_user(telegram_id)
 
     if user is None:
@@ -773,18 +867,22 @@ async def get_available_groups(
 
     cache_path = get_groups_cache_path(schedule_part)
 
-    cached_groups = load_cache(cache_path, "groups", GROUPS_CACHE_TTL)
+    cached_entry = load_cache_entry(cache_path, "groups", GROUPS_CACHE_TTL)
 
-    if cached_groups is not None:
+    if cached_entry is not None:
         log(
             "ulstu.schedule",
             f"Используем список групп из кэша: "
             f"part={schedule_part}, "
-            f"groups={len(cached_groups)}",
+            f"groups={len(cached_entry.value)}",
             telegram_id,
         )
 
-        return cached_groups
+        return GroupsSnapshot(
+            cached_entry.value,
+            False,
+            cached_entry.updated_at,
+        )
 
     log(
         "ulstu.schedule",
@@ -793,10 +891,31 @@ async def get_available_groups(
         telegram_id,
     )
 
-    groups = await get_schedule_groups(
-        telegram_id,
-        override_schedule_part=schedule_part,
-    )
+    try:
+        groups = await get_schedule_groups(
+            telegram_id,
+            override_schedule_part=schedule_part,
+        )
+
+    except GROUPS_FALLBACK_ERRORS as error:
+        stale_entry = load_cache_entry(cache_path, "groups", None)
+
+        if stale_entry is None:
+            raise
+
+        log(
+            "ulstu.schedule",
+            f"Список групп не обновился ({error}). "
+            f"Используем устаревший кэш от {stale_entry.updated_at}",
+            telegram_id,
+            level="WARNING",
+        )
+
+        return GroupsSnapshot(
+            stale_entry.value,
+            True,
+            stale_entry.updated_at,
+        )
 
     groups = normalize_groups(groups)
 
@@ -815,7 +934,12 @@ async def get_available_groups(
         telegram_id,
     )
 
-    return groups
+    return GroupsSnapshot(
+        groups,
+        False,
+        datetime.now(timezone.utc),
+    )
+
 
 async def is_group_valid_advanced(
     telegram_id: int,
@@ -824,14 +948,22 @@ async def is_group_valid_advanced(
 ) -> bool:
     group = normalize_group(group)
 
-    groups = await get_available_groups(
+    snapshot = await get_available_groups(
         telegram_id,
         override_schedule_part=override_schedule_part,
     )
 
+    if snapshot.is_stale:
+        log(
+            "ulstu.schedule",
+            "Проверка группы по устаревшему списку",
+            telegram_id,
+            level="WARNING",
+        )
+
     return any(
         normalize_group(item["group"]) == group
-        for item in groups
+        for item in snapshot.groups
     )
 
 def normalize_groups(groups: list[dict]) -> list[dict]:

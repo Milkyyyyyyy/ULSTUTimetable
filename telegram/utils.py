@@ -90,16 +90,23 @@ async def send_schedule(
         message: Message,
         schedule: dict,
         edit_message: Message | None = None,
+        note: str | None = None,
 ):
     """Отправляет или редактирует расписание на день.
 
     Если задано edit_message — расписание выводится в этом сообщении
     вместо отправки нового (см. замену временного «Загружаю...»).
+
+    note — приписка в конце сообщения, например предупреждение
+    о том, что список групп на сайте УлГТУ не удалось обновить.
     """
     message_text = await format_day_schedule(
         schedule,
         message.chat.id,
     )
+
+    if note:
+        message_text = f"{message_text}\n\n{note}"
 
     if edit_message is not None:
         await edit_message.edit_text(
