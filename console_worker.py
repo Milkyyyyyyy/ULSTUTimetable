@@ -8,6 +8,7 @@ help, users, stats, notify, logs, delete_user, broadcast, db.
 
 import asyncio
 import logging
+import sys
 import shutil
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -90,6 +91,12 @@ session = PromptSession(completer=completer)
 
 
 async def console_worker(dp, bot):
+    # В headless-режиме (например, под systemd без TTY) консольное
+    # управление недоступно — держим корутину, чтобы не глушить бота.
+    if not sys.stdin.isatty():
+        log("console", "stdin не TTY — консольное управление отключено (headless)")
+        await asyncio.Event().wait()
+        return
     # patch_stdout держит строку ввода отдельно внизу терминала: логи
     # (и любые print) встают над ней, а не ломают вводимую команду.
     # raw=True — чтобы сохранить ANSI-цвета из console_log.
